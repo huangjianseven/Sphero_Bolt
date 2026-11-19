@@ -4,6 +4,7 @@
     1. 开机：说"你好，我是 BOLT"，点阵滚动 HI
     2. 键盘遥控，每个动作都有音效：
          ↑ 加速 → Tink      ↓ 减速 → Pop
+         速度为 0 时按 ↓ → 自动掉头 180° 并起步 → Submarine
          ← / → 转向 → Morse   空格 急停 → Basso + 点阵闪红
          Esc 退出 → 说"再见"
     3. 摇晃 / 被拿起 / 撞到东西（加速度突变）→ 说"哎呀"，点阵显示 !
@@ -56,8 +57,14 @@ def on_press(key):
             s.speed = min(MAX_SPEED, s.speed + SPEED_STEP)
             s.events.append("up")
         elif key == keyboard.Key.down:
-            s.speed = max(0, s.speed - SPEED_STEP)
-            s.events.append("down")
+            if s.speed == 0:
+                # 遥控车式倒车：已停稳时按 ↓，掉头 180° 并起步
+                s.heading = (s.heading + 180) % 360
+                s.speed = SPEED_STEP
+                s.events.append("uturn")
+            else:
+                s.speed = max(0, s.speed - SPEED_STEP)
+                s.events.append("down")
         elif key == keyboard.Key.left:
             s.heading = (s.heading - TURN_STEP) % 360
             s.events.append("turn")
@@ -117,6 +124,8 @@ with SpheroEduAPI(toy) as api:
                     sound("Tink")
                 elif ev == "down":
                     sound("Pop")
+                elif ev == "uturn":
+                    sound("Submarine")
                 elif ev == "turn":
                     sound("Morse")
                 elif ev == "stop":
