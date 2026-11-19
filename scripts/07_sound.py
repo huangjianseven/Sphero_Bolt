@@ -74,8 +74,9 @@ def on_press(key):
             s.speed = 0
             s.events.append("stop")
         elif key == keyboard.Key.esc:
+            # 只设标记，由主循环统一调用 listener.stop()；
+            # 不在回调里 return False，避免 macOS 下退出时打印 StopException 堆栈
             s.quit = True
-            return False
 
 
 def accel_deviation(api):

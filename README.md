@@ -4,6 +4,7 @@
 ## 文档
 
 1. [第一步：取得 Sphero BOLT 的控制权](docs/01-取得控制权方案.md)
+2. [Step 1–7 测试报告（2026-11-20）](docs/02-测试报告.md)
 
 ## 快速开始
 
@@ -20,7 +21,10 @@ python 04_move.py            # 运动（放在地上！）
 python 05_sensors.py         # 读传感器
 python 06_keyboard_drive.py  # 键盘遥控
 python 07_sound.py           # 带音效的遥控（BOLT 无扬声器，声音由 Mac 播放）
+python 08_compass.py         # 罗盘校准，并依次指向 北/东/南/西
 ```
+
+> **Python 版本**：请用 3.10 – 3.12（已验证 3.12.16）。Python 3.15 与 `spherov2 0.12.1` 不兼容。
 
 运行前请关闭 Sphero Edu App（蓝牙同一时间只能连一台主机）。
 默认连接 `SB-8EE3`，可用环境变量 `BOLT_NAME` 修改。
