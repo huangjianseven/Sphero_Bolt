@@ -1,7 +1,7 @@
 """Step 6：键盘遥控 —— 真正"取得控制权"。
 
 按键：
-    ↑ / ↓     加速 / 减速；速度为 0 时按 ↓ → 自动掉头 180° 并起步
+    ↑ / ↓     加速 / 减速；速度为 0 时按 ↓ → 原地调转 180°，速度保持 0
     ← / →     左转 / 右转 15°
     空格      急停
     A         对准模式：后灯亮，←/→ 只转方向不前进，再按 A 设为新的 0°
@@ -45,9 +45,8 @@ def on_press(key):
             s.speed = min(MAX_SPEED, s.speed + SPEED_STEP)
         elif key == keyboard.Key.down and not s.aiming:
             if s.speed == 0:
-                # 遥控车式倒车：已停稳时按 ↓，掉头 180° 并起步
+                # 已停稳时按 ↓：原地调转 180°，速度保持 0（再按 ↑ 起步）
                 s.heading = (s.heading + 180) % 360
-                s.speed = SPEED_STEP
             else:
                 s.speed = max(0, s.speed - SPEED_STEP)
         elif key == keyboard.Key.left:
