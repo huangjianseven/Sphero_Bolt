@@ -19,6 +19,7 @@ python 03_matrix.py          # 点阵文字 / 笑脸
 python 04_move.py            # 运动（放在地上！）
 python 05_sensors.py         # 读传感器
 python 06_keyboard_drive.py  # 键盘遥控
+python 07_sound.py           # 带音效的遥控（BOLT 无扬声器，声音由 Mac 播放）
 ```
 
 运行前请关闭 Sphero Edu App（蓝牙同一时间只能连一台主机）。
