@@ -1,3 +1,6 @@
+# 请使用 Python 3.10 – 3.12（已验证：3.12.16）
+# ⚠️ Python 3.15 与 spherov2 0.12.1 不兼容：partialmethod 内部名称变化，
+#    会导致点阵逐像素等命令被误判为"不支持"
 spherov2>=0.12
 bleak
 pynput
