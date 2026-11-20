@@ -41,7 +41,8 @@ with SpheroEduAPI(toy) as api:
     for y, row in enumerate(SMILE):
         for x, bit in enumerate(row):
             if bit == "1":
-                api.set_matrix_pixel(x, y, YELLOW)
+                # BOLT 点阵的 y=0 在下面（实测），所以上下翻转，笑脸才不会变成哭脸
+                api.set_matrix_pixel(x, 7 - y, YELLOW)
     time.sleep(3)
     api.clear_matrix()
 
