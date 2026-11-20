@@ -298,6 +298,12 @@ def parse_start(text: str) -> float:
     return total + float(parts[-1])
 
 
+def hms24(t: float) -> str:
+    """把秒数写成 24 小时制的 HH:MM:SS（启动提示用）。"""
+    t = int(t)
+    return f"{hour_number(t):02d}:{t % 3600 // 60:02d}:{t % 60:02d}"
+
+
 def now_seconds() -> float:
     """当前系统时间折算成从 0 点开始的秒数（含小数）。"""
     n = dt.datetime.now()
@@ -492,8 +498,7 @@ def run_bolt(sw: Stopwatch, flip: bool):
             # 画初始画面也要时间，时钟模式下直接对齐到画完这一刻的系统时间
             sw.start = now_seconds()
         print("运行中 —— " + help_line(sw))
-        h, m, s = split_time(sw.start)
-        print(f"连接完成，从 {h} 时 {m} 分 {s} 秒开始计时")
+        print(f"连接完成，从 {hms24(sw.start)}（24 小时制）开始计时")
         sw.restart_from(sw.start)
 
         def loop():
@@ -567,12 +572,10 @@ def main():
     start = 0.0 if a.start is None else a.start
     sw = Stopwatch(start, running=a.preview, follow_clock=clock_mode)
     if clock_mode:
-        h24 = int(sw.start // 3600)
-        print(f"已读取系统时间 {h24:02d}:{int(sw.start % 3600 // 60):02d}:{int(sw.start % 60):02d}"
-              f"（点阵按 24 小时日升日落显示{'' if a.preview else '；连上 BOLT 后会再对一次时'}）")
+        print(f"已读取系统时间 {hms24(sw.start)}（24 小时制，点阵按日升日落显示"
+              f"{'' if a.preview else '；连上 BOLT 后会再对一次时'}）")
     else:
-        h, m, s_ = split_time(start)
-        print(f"秒表模式：从 {h} 时 {m} 分 {s_} 秒开始")
+        print(f"秒表模式：从 {hms24(start)}（24 小时制）开始")
 
     if a.preview:
         run_preview(sw)
