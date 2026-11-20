@@ -12,6 +12,7 @@
     python 11_analog_clock.py               # 在 BOLT 上显示，Ctrl+C 退出
     python 11_analog_clock.py --rotate 90   # 画面方向不对时旋转：0 / 90 / 180 / 270
     python 11_analog_clock.py --preview     # 不连 BOLT，只在终端里预览画面
+    python 11_analog_clock.py --no-flip     # 不做上下翻转（一般不需要）
 
 建议：让 BOLT 的点阵正对着你看；如果 12 点方向不在上方，用 --rotate 调整。
 """
@@ -96,6 +97,16 @@ def rotate(p, quarter_turns: int):
     return x, y
 
 
+def to_device(p, quarter_turns: int, flip: bool = True):
+    """把"人看到的坐标"（y=0 在最上面）换成 BOLT 点阵的坐标。
+
+    实测（2026-11-20 照片）：BOLT 的 set_matrix_pixel 的 y 轴和我们以为的相反，
+    y=0 在下面。不翻转的话，整个画面上下颠倒：秒针看起来逆时针走，分针指反方向。
+    """
+    x, y = rotate(p, quarter_turns)
+    return (x, 7 - y) if flip else (x, y)
+
+
 def preview_text(frame) -> str:
     return "\n".join(
         " ".join(PREVIEW_CHARS.get(frame[(x, y)], "?") for x in range(8)) for y in range(8)
@@ -117,7 +128,7 @@ def run_preview():
         print()
 
 
-def run_bolt(quarter_turns: int):
+def run_bolt(quarter_turns: int, flip: bool = True):
     from common import find_bolt
     from spherov2.sphero_edu import SpheroEduAPI
     from spherov2.types import Color
@@ -147,7 +158,7 @@ def run_bolt(quarter_turns: int):
                     # 只发送有变化的像素：每条命令都要走蓝牙，整屏重画太慢
                     changed = [p for p in frame if frame[p] != shown[p]]
                     for p in changed:
-                        x, y = rotate(p, quarter_turns)
+                        x, y = to_device(p, quarter_turns, flip)
                         api.set_matrix_pixel(x, y, color(frame[p]))
                         shown[p] = frame[p]
                     print(f"\r{now:%H:%M:%S}  更新 {len(changed):2d} 个像素   ", end="", flush=True)
@@ -166,11 +177,13 @@ def main():
     p.add_argument("--rotate", type=int, default=0, choices=[0, 90, 180, 270],
                    help="画面顺时针旋转角度，用来把 12 点方向转到上方")
     p.add_argument("--preview", action="store_true", help="不连 BOLT，只在终端里预览")
+    p.add_argument("--no-flip", action="store_true",
+                   help="不做上下翻转（默认会翻转，以适配 BOLT 点阵 y 轴朝上的坐标）")
     a = p.parse_args()
     if a.preview:
         run_preview()
     else:
-        run_bolt(a.rotate // 90)
+        run_bolt(a.rotate // 90, flip=not a.no_flip)
 
 
 if __name__ == "__main__":
