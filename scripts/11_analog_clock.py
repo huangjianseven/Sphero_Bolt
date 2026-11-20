@@ -4,8 +4,9 @@
     · 外圈（最外一圈 28 个点）：秒针 —— 一个红点沿外圈顺时针走，60 秒一圈
     · 外圈的 12 / 3 / 6 / 9 点位置：暗白色刻度
     · 内部 6x6：分针（青色，长）和时针（橙色，短），从中心指出
-    · 后灯：每秒闪一下，像钟表的"嘀嗒"
-    外圈只有 28 个点，所以红点大约每 2 秒前进一格；后灯保证每一秒都能看到变化。
+    · 秒针红点每秒在"亮红 / 暗红"之间切换一次，像钟表的"嘀嗒"
+    外圈只有 28 个点，红点大约每 2 秒前进一格；亮暗切换保证每一秒都能看到变化。
+    前灯、后灯（主板上的蓝灯）全程关闭，不刺眼。
 
 用法：
     python 11_analog_clock.py               # 在 BOLT 上显示，Ctrl+C 退出
@@ -25,14 +26,12 @@ HOUR_LEN = 1.9               # 时针长度
 
 # 颜色用 (r, g, b) 元组表示，连 BOLT 时再转成 Color
 OFF = (0, 0, 0)
-SECOND = (255, 0, 0)         # 秒针：红
+SECOND = (255, 0, 0)         # 秒针：亮红（偶数秒）
+SECOND_DIM = (60, 0, 0)      # 秒针：暗红（奇数秒）
 MINUTE = (0, 200, 255)       # 分针：青
 HOUR = (255, 120, 0)         # 时针：橙
 MARK = (40, 40, 40)          # 刻度：暗白
-TICK_ON = (0, 0, 255)        # 后灯嘀嗒：蓝
-TICK_OFF = (0, 0, 0)
-
-PREVIEW_CHARS = {OFF: "·", SECOND: "S", MINUTE: "M", HOUR: "H", MARK: "+"}
+PREVIEW_CHARS = {OFF: "·", SECOND: "S", SECOND_DIM: "s", MINUTE: "M", HOUR: "H", MARK: "+"}
 
 
 # ---------------------------------------------------------------- 几何
@@ -63,14 +62,13 @@ def hand_pixels(deg: float, length: float):
     rad = math.radians(deg)
     dx, dy = math.sin(rad), -math.cos(rad)
     pts = []
-    t = 0.5
-    while t <= length + 1e-9:
+    steps = [0.5 + 0.25 * i for i in range(int((length - 0.5) / 0.25) + 1)] + [length]  # 末端一定取到
+    for t in steps:
         x = math.floor(CENTER + t * dx + 0.5)
         y = math.floor(CENTER + t * dy + 0.5)
         x, y = min(max(x, 1), 6), min(max(y, 1), 6)   # 限制在内部 6x6
         if (x, y) not in pts:
             pts.append((x, y))
-        t += 0.25
     return pts
 
 
@@ -86,7 +84,7 @@ def render(now: dt.datetime):
         frame[p] = MINUTE
     for p in hand_pixels(hour_deg, HOUR_LEN):
         frame[p] = HOUR
-    frame[ring_pixel(now.second * 6)] = SECOND
+    frame[ring_pixel(now.second * 6)] = SECOND if now.second % 2 == 0 else SECOND_DIM
     return frame
 
 
@@ -106,7 +104,7 @@ def preview_text(frame) -> str:
 
 # ---------------------------------------------------------------- 运行
 def run_preview():
-    print("终端预览（S=秒针 M=分针 H=时针 +=刻度），Ctrl+C 退出")
+    print("终端预览（S/s=秒针亮/暗 M=分针 H=时针 +=刻度），Ctrl+C 退出")
     last = None
     try:
         while True:
@@ -133,11 +131,13 @@ def run_bolt(quarter_turns: int):
 
     toy = find_bolt()
     with SpheroEduAPI(toy) as api:
-        print("指针时钟运行中（红=秒 青=分 橙=时，后灯每秒闪一下），Ctrl+C 退出")
+        print("指针时钟运行中（红=秒 青=分 橙=时，红点每秒亮暗切换），Ctrl+C 退出")
+        # 关掉前灯和后灯（主板上的蓝灯），只用点阵显示
+        api.set_back_led(color(OFF))
+        api.set_front_led(color(OFF))
         api.clear_matrix()
         shown = {(x, y): OFF for y in range(8) for x in range(8)}
         last_sec = None
-        tick = False
         try:
             while True:
                 now = dt.datetime.now()
@@ -150,15 +150,14 @@ def run_bolt(quarter_turns: int):
                         x, y = rotate(p, quarter_turns)
                         api.set_matrix_pixel(x, y, color(frame[p]))
                         shown[p] = frame[p]
-                    tick = not tick
-                    api.set_back_led(color(TICK_ON if tick else TICK_OFF))
                     print(f"\r{now:%H:%M:%S}  更新 {len(changed):2d} 个像素   ", end="", flush=True)
                 time.sleep(0.05)
         except KeyboardInterrupt:
             pass
         finally:
             api.clear_matrix()
-            api.set_back_led(color(TICK_OFF))
+            api.set_back_led(color(OFF))
+            api.set_front_led(color(OFF))
     print("\n已清屏并断开")
 
 
