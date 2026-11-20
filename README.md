@@ -25,7 +25,7 @@ python 08_compass.py         # 罗盘校准，并依次指向 北/东/南/西
 caffeinate -i python 09_alarm.py --in 2   # 闹钟测试：2 分钟后响（正式用 --time 08:00）
 python 10_scroll_text.py     # 输入英文，在点阵上循环滚动，直到手动干预
 python 11_analog_clock.py    # 指针时钟：红点秒针绕外圈走，每秒亮暗切换
-python 11_2_stopwatch.py     # 点阵时钟（默认读电脑系统时间）：第1、2列洋红=时，第4、5列白/绿=分，第7、8列蓝/黄=秒；--stopwatch 为秒表
+python 11_2_stopwatch.py     # 点阵时钟（默认读电脑系统时间）：洋红=时，白/绿=分，蓝/黄=秒；下一颗灯呼吸着亮起，整秒准时进位
 ```
 
 > **Python 版本**：请用 3.10 – 3.12（已验证 3.12.16）。Python 3.15 与 `spherov2 0.12.1` 不兼容。
