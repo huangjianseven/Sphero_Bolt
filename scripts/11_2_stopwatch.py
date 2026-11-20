@@ -1,33 +1,45 @@
 """Step 11_2：点阵时钟第二版 —— 时、分、秒（时：第 1、2 列；分：第 4、5 列；秒：第 7、8 列）。
 
+  静的灯，是已经过去的时间；
+  正在亮起来的那一颗，是此刻。
+
 编码方式（列、颗都从 1 开始数；颗从上往下数）
 
-【小时】第 1、2 列，洋红灯 ▲，不进位、不闪烁
+【小时】第 1、2 列，洋红灯 ▲
     几点就亮几颗：第 1 列从上到下排满 8 颗后，再从第 2 列第 1 颗往下排
     0 点、12 点不亮；11 点 – 11:59 亮 11 颗（第 1 列 8 颗 + 第 2 列 3 颗）
     按 12 小时制：13 点亮 1 颗，23 点亮 11 颗
 
-【分钟、秒】用同一套"十位 + 个位 + 闪烁"规则：
+【分钟、秒】"十位 + 个位"，全部常亮，不再闪烁：
 
                     分钟（第 4、5 列）          秒（第 7、8 列）
     十位 1–5 颗     第 4 列，白灯 ◆             第 7 列，蓝灯 ■
     第 6 颗         第 4 列，空着               第 7 列，空着
     个位路径        第4列第7、8颗 → 第5列1–8颗   第7列第7、8颗 → 第8列1–8颗
-    个位常亮        绿灯 ○                      黄灯 ●
-    闪烁（正在走）   绿灯 ⊙，亮 1 秒、灭 1 秒     黄灯 ✱，亮半秒、灭半秒
+    个位            绿灯 ○                      黄灯 ●
 
     时   = 洋红灯数
-    分钟 = 白灯数 × 10 + 常亮绿灯数
-    秒   = 蓝灯数 × 10 + 常亮黄灯数
+    分钟 = 白灯数 × 10 + 绿灯数
+    秒   = 蓝灯数 × 10 + 黄灯数
 
     第 3 列、第 6 列不用，用来隔开时、分、秒。
 
+【呼吸】
+    每一秒里，"下一秒将要亮起的那颗灯"会从黑暗中慢慢亮起来，像吸一口气；
+    在整秒的那一刻正好亮足，成为一颗安静的常亮灯。随后下一颗开始呼吸。
+    · 平时呼吸的是下一颗黄灯
+    · x9 秒时呼吸的是下一颗蓝灯 —— 进位前的那一秒，十位慢慢亮起；整秒时九颗黄灯同时熄灭
+    · 59 秒时呼吸的是下一颗分钟灯；59 分 59 秒时呼吸的是下一颗小时灯
+    · 亮度按人眼的感知曲线（smoothstep + gamma 2.2）上升，看起来是匀速、柔和地亮起
+    · 熄灭不做渐变：进位就在整秒那一刻干净利落地发生
+    分钟不再有闪烁灯，整个画面每秒只有一颗灯在缓缓变化。
+
          第1列 第2列 │ 第4列 第5列 │ 第7列 第8列
     第1颗  ▲     ▲   │   ◆     ○   │   ■     ●     （左图 = 10 点 12 分 25 秒）
-    第2颗  ▲     ▲   │   ·     ⊙   │   ■     ●     时：10 洋红
-    第3颗  ▲     ·   │   ·     ·   │   ·     ●     分：1 白 + 2 绿 + 闪烁
-    第4颗  ▲     ·   │   ·     ·   │   ·     ✱     秒：2 蓝 + 5 黄 + 闪烁
-    第5颗  ▲     ·   │   ·     ·   │   ·     ·
+    第2颗  ▲     ▲   │   ·     ·   │   ■     ●     时：10 洋红
+    第3颗  ▲     ·   │   ·     ·   │   ·     ●     分：1 白 + 2 绿
+    第4颗  ▲     ·   │   ·     ·   │   ·     ✧     秒：2 蓝 + 5 黄
+    第5颗  ▲     ·   │   ·     ·   │   ·     ·     ✧ = 正在呼吸、将在 26 秒亮足的那颗
     第6颗  ▲     ·   │   ·     ·   │   ·     ·
     第7颗  ▲     ·   │   ○     ·   │   ●     ·
     第8颗  ▲     ·   │   ○     ·   │   ●     ·
@@ -53,17 +65,21 @@ import time
 OFF = (0, 0, 0)
 # 秒
 BLUE = (0, 80, 255)          # 秒十位
-YELLOW = (255, 200, 0)       # 秒个位（常亮和闪烁同色）
+YELLOW = (255, 200, 0)       # 秒个位
 # 分钟（和秒的颜色区分开）
 WHITE = (255, 255, 255)      # 分十位（白：避免和洋红色的小时混淆）
-GREEN = (0, 255, 60)         # 分个位（常亮和闪烁同色）
+GREEN = (0, 255, 60)         # 分个位
 # 小时（和分、秒的颜色区分开）
 MAGENTA = (255, 0, 255)      # 小时：洋红
 
-PALETTE = (OFF, YELLOW, BLUE, WHITE, GREEN, MAGENTA)   # 连 BOLT 时要用到的全部颜色
+PALETTE = (OFF, YELLOW, BLUE, WHITE, GREEN, MAGENTA)   # 常亮颜色（呼吸中的灯是它们的渐暗版本）
+
+# 呼吸
+BREATH_STEPS = 8   # 每秒亮度分 8 档：足够柔和，蓝牙每秒最多多发约 7 条命令
+GAMMA = 2.2        # 人眼对亮度的感知近似 gamma 2.2：按它换算，亮起来看着才是"匀速"的
 
 
-def make_digit_group(col: int, tens_color, ones_color, blink_period: float):
+def make_digit_group(col: int, tens_color, ones_color):
     """一组"十位 + 个位"显示：用第 col 列和第 col+1 列（列号从 1 开始）。
 
     坐标用 (x, y)：x 是列、y 是颗，都从 0 开始数（第 7 列 → x=6，第 1 颗 → y=0）。
@@ -75,13 +91,12 @@ def make_digit_group(col: int, tens_color, ones_color, blink_period: float):
         "gap": (x, 5),                                                 # 第 col 列第 6 颗：空着
         "tens_color": tens_color,
         "ones_color": ones_color,
-        "blink_period": blink_period,   # 闪烁周期（秒）：前一半亮、后一半灭
         "pixels": [(xx, y) for xx in (x, x + 1) for y in range(8)],
     }
 
 
-MINUTES = make_digit_group(4, WHITE, GREEN, blink_period=2.0)   # 第 4、5 列
-SECONDS = make_digit_group(7, BLUE, YELLOW, blink_period=1.0)    # 第 7、8 列
+MINUTES = make_digit_group(4, WHITE, GREEN)   # 第 4、5 列
+SECONDS = make_digit_group(7, BLUE, YELLOW)    # 第 7、8 列
 GROUPS = (MINUTES, SECONDS)
 
 # 小时：第 1 列第 1–8 颗，再接第 2 列第 1–8 颗；12 小时制最多 11 颗
@@ -98,26 +113,63 @@ def split_time(elapsed: float):
     return (total // 3600) % 12, (total // 60) % 60, total % 60
 
 
-def draw_group(frame, g, value: int, elapsed: float):
-    """把 0–59 的数值按"十位 + 个位 + 闪烁"画进 frame。"""
+def draw_group(frame, g, value: int):
+    """把 0–59 的数值按"十位 + 个位"画进 frame（全部常亮）。"""
     tens, ones = divmod(value, 10)
     for p in g["tens_path"][:tens]:
         frame[p] = g["tens_color"]
     for p in g["ones_path"][:ones]:
         frame[p] = g["ones_color"]
-    blink_on = (elapsed % g["blink_period"]) < g["blink_period"] / 2
-    frame[g["ones_path"][ones]] = g["ones_color"] if blink_on else OFF
+
+
+def steady_frame(whole_seconds: int):
+    """某一整秒时的静止画面：只有常亮灯，没有呼吸。"""
+    hours, minutes, seconds = split_time(whole_seconds)
+    frame = {p: OFF for p in ALL_PIXELS}
+    for p in HOUR_PATH[:hours]:                # 小时：几点亮几颗
+        frame[p] = MAGENTA
+    draw_group(frame, MINUTES, minutes)
+    draw_group(frame, SECONDS, seconds)
+    return frame
+
+
+def breath_level(frac: float) -> float:
+    """一秒之内的"吸气"亮度：0 → 1。
+
+    先把这一秒切成 BREATH_STEPS 档，再用 smoothstep 让开头和结尾都放缓（像呼吸），
+    最后按 gamma 换成 LED 的实际亮度，让人眼看到的是均匀、柔和的变亮。
+    """
+    q = int(frac * BREATH_STEPS) / BREATH_STEPS
+    eased = q * q * (3 - 2 * q)
+    return eased ** GAMMA
+
+
+def dim(color, level: float):
+    return tuple(int(round(c * level)) for c in color)
 
 
 def encode(elapsed: float):
-    """把经过的时间编码成像素：返回 {(x, y): 颜色}，y=0 是最上面一颗。"""
-    hours, minutes, seconds = split_time(elapsed)
-    frame = {p: OFF for p in ALL_PIXELS}
-    for p in HOUR_PATH[:hours]:                # 小时：几点亮几颗，不闪烁
-        frame[p] = MAGENTA
-    draw_group(frame, MINUTES, minutes, elapsed)
-    draw_group(frame, SECONDS, seconds, elapsed)
+    """把经过的时间编码成像素：返回 {(x, y): 颜色}，y=0 是最上面一颗。
+
+    当前整秒的常亮画面 + "下一整秒将要新亮起的灯"按呼吸亮度慢慢浮现。
+    整秒那一刻，呼吸的灯正好亮足；该熄灭的灯（比如进位时的九颗黄灯）在那一刻同时熄灭。
+    """
+    now = int(elapsed)
+    frame = steady_frame(now)
+    upcoming = steady_frame(now + 1)
+    level = breath_level(elapsed - now)
+    if level > 0:
+        for p, c in upcoming.items():
+            if c != OFF and frame[p] == OFF:
+                frame[p] = dim(c, level)
     return frame
+
+
+def breathing_pixels(elapsed: float):
+    """此刻正在呼吸的灯（预览、测试用）。"""
+    now = int(elapsed)
+    a, b = steady_frame(now), steady_frame(now + 1)
+    return [p for p in ALL_PIXELS if a[p] == OFF and b[p] != OFF]
 
 
 def to_device(p, flip: bool = True):
@@ -133,9 +185,9 @@ def describe(elapsed: float) -> str:
 
 
 def preview_text(frame, elapsed: float) -> str:
-    _, minutes, seconds = split_time(elapsed)
-    blinks = {MINUTES["ones_path"][minutes % 10]: "⊙", SECONDS["ones_path"][seconds % 10]: "✱"}
     chars = {OFF: "·", WHITE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●", MAGENTA: "▲"}
+    level = breath_level(elapsed - int(elapsed))
+    glyph = "·" if level < 0.02 else "∘" if level < 0.25 else "✧" if level < 0.7 else "✦"
     lines = [f"累计 {elapsed:7.1f} 秒   " + describe(elapsed)]
     for y in range(8):
         row = []
@@ -144,7 +196,7 @@ def preview_text(frame, elapsed: float) -> str:
                 row.append("│")
                 continue
             c = frame.get((x, y), OFF)
-            row.append(blinks[(x, y)] if (x, y) in blinks and c != OFF else chars[c])
+            row.append(chars.get(c, glyph))   # 不在常亮色表里的，就是正在呼吸的灯
         lines.append("  " + "  ".join(row))
     return "\n".join(lines)
 
@@ -311,15 +363,15 @@ def run_preview(sw: Stopwatch):
         last = None
         while not sw.quit:
             e = sw.elapsed()
-            key = (int(e), e - int(e) < 0.5)
+            key = int(e * 4)          # 每 0.25 秒打印一次，能看到呼吸的过程
             if key != last:
                 last = key
                 print("\n" + preview_text(encode(e), e))
             time.sleep(0.02)
 
     threading.Thread(target=loop, daemon=True).start()
-    print("终端预览（第1、2列 │ 第4、5列 │ 第7、8列；▲ 洋红=时  ◆ 白=分十位  ○ 绿=分个位  ⊙ 分闪烁"
-          "  ■ 蓝=秒十位  ● 黄=秒个位  ✱ 秒闪烁）")
+    print("终端预览（第1、2列 │ 第4、5列 │ 第7、8列；▲ 洋红=时  ◆ 白=分十位  ○ 绿=分个位"
+          "  ■ 蓝=秒十位  ● 黄=秒个位  ∘ ✧ ✦ = 正在呼吸、慢慢亮起的灯）")
     keyboard_loop(sw)
 
 
@@ -328,7 +380,13 @@ def run_bolt(sw: Stopwatch, flip: bool):
     from spherov2.sphero_edu import SpheroEduAPI
     from spherov2.types import Color
 
-    colors = {rgb: Color(*rgb) for rgb in PALETTE}
+    class ColorCache(dict):
+        """呼吸会用到很多渐暗的颜色，用到哪个就创建哪个。"""
+        def __missing__(self, rgb):
+            self[rgb] = Color(*rgb)
+            return self[rgb]
+
+    colors = ColorCache()
     toy = find_bolt()
     with SpheroEduAPI(toy) as api:
         api.set_back_led(colors[OFF])     # 关掉刺眼的前后灯
@@ -355,29 +413,42 @@ def run_bolt(sw: Stopwatch, flip: bool):
         def loop():
             shown = {p: initial.get(p, OFF) for p in FULL_GRID}   # 点阵上实际显示的内容
             last_sec = None
+            cmd_time = 0.05      # 一条蓝牙命令的耗时，运行中不断实测更新（指数平均）
             try:
                 while not sw.quit:
                     version = sw.version
                     e = sw.elapsed()
-                    tick = int(e * 2)                 # 半秒一格：秒的闪烁每半秒变一次
-                    frame = encode(e)
+                    target = e
+                    if sw.running:
+                        # 准时进位：估算"下一个整秒的画面"要发几条命令、要多久，
+                        # 提前这么一点开始发，让变化正好落在整秒上（而不是晚几十到几百毫秒）
+                        boundary = int(e) + 1
+                        n_next = len(plan_updates(encode(boundary), shown))
+                        lead = min(0.35, (n_next + 1) / 2 * cmd_time)
+                        if boundary - e <= lead:
+                            target = boundary
+                    tick = int(target)
+                    frame = encode(target)
                     finished = True
                     for cmd in plan_updates(frame, shown):
-                        # 计时和刷新解耦：一旦状态变了（清零/暂停）或时间走到了下一格，
+                        # 计时和刷新解耦：一旦状态变了（清零/暂停）或时间已经越过了这一帧对应的整秒，
                         # 就放弃这一帧剩下的命令，回到循环开头直接画最新的画面
-                        if sw.quit or sw.version != version or int(sw.elapsed() * 2) != tick:
+                        # （呼吸亮度的小台阶不打断，只有整秒才打断，保证进位准时）
+                        if sw.quit or sw.version != version or int(sw.elapsed()) > tick:
                             finished = False
                             break
+                        t_cmd = time.monotonic()
                         apply_update(api, cmd, colors, flip, fill_state)
+                        cmd_time = 0.8 * cmd_time + 0.2 * min(0.3, time.monotonic() - t_cmd)
                         x1, x2, y1, y2, c = cmd
                         for x in range(x1, x2 + 1):
                             for y in range(y1, y2 + 1):
                                 shown[(x, y)] = c
-                    sec = int(e)
+                    sec = tick
                     if finished and sec != last_sec:
                         last_sec = sec
                         # 只有整帧画完才打印，日志和点阵上实际显示的一致
-                        print(f"\r{describe(e)}   ", end="", flush=True)
+                        print(f"\r{describe(target)}   ", end="", flush=True)
                     time.sleep(0.01)
             except Exception as ex:
                 print(f"\n⚠️ 刷新出错：{ex!r}，请按回车或 Ctrl+C 退出")
