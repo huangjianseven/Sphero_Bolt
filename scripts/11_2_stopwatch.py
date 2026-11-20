@@ -5,10 +5,22 @@
 
 编码方式（列、颗都从 1 开始数；颗从上往下数）
 
-【小时】第 1、2 列，洋红灯 ▲
-    几点就亮几颗：第 1 列从上到下排满 8 颗后，再从第 2 列第 1 颗往下排
-    0 点、12 点不亮；11 点 – 11:59 亮 11 颗（第 1 列 8 颗 + 第 2 列 3 颗）
-    按 12 小时制：13 点亮 1 颗，23 点亮 11 颗
+【小时】第 1、2 列，洋红，椭圆表盘（oval-dial-clock 分支）
+    把两列 16 颗灯看成一个压扁的表盘边框：
+
+          第1列 第2列
+    第1颗   12   12      ← 顶：12 点
+    第2颗   11    1
+    第3颗   10    2
+    第4颗    9    3      ← 3、6、9、12 各占两颗，像加粗的刻度
+    第5颗    9    3
+    第6颗    8    4
+    第7颗    7    5
+    第8颗    6    6      ← 底：6 点
+
+    光环（默认）：从 1 点顺时针亮到当前钟点；12 点时光环合拢成一整圈
+    刻度（--hour-style tick）：只亮当前钟点，其余刻度发一点点暗光，衬出表盘
+    按 12 小时制：13 点 = 1 点
 
 【分钟、秒】"十位 + 个位"，全部常亮，不再闪烁：
 
@@ -18,7 +30,6 @@
     个位路径        第4列第7、8颗 → 第5列1–8颗   第7列第7、8颗 → 第8列1–8颗
     个位            绿灯 ○                      黄灯 ●
 
-    时   = 洋红灯数
     分钟 = 白灯数 × 10 + 绿灯数
     秒   = 蓝灯数 × 10 + 黄灯数
 
@@ -29,20 +40,21 @@
     在整秒的那一刻正好亮足，成为一颗安静的常亮灯。随后下一颗开始呼吸。
     · 平时呼吸的是下一颗黄灯
     · x9 秒时呼吸的是下一颗蓝灯 —— 进位前的那一秒，十位慢慢亮起；整秒时九颗黄灯同时熄灭
-    · 59 秒时呼吸的是下一颗分钟灯；59 分 59 秒时呼吸的是下一颗小时灯
+    · 59 秒时呼吸的是下一颗分钟灯
+    · 小时更慢：下一个钟点的灯用整整一个小时慢慢亮起（一小时一口气），整点时正好亮足
     · 亮度按人眼的感知曲线（smoothstep + gamma 2.2）上升，看起来是匀速、柔和地亮起
     · 熄灭不做渐变：进位就在整秒那一刻干净利落地发生
     分钟不再有闪烁灯，整个画面每秒只有一颗灯在缓缓变化。
 
          第1列 第2列 │ 第4列 第5列 │ 第7列 第8列
-    第1颗  ▲     ▲   │   ◆     ○   │   ■     ●     （左图 = 10 点 12 分 25 秒）
-    第2颗  ▲     ▲   │   ·     ·   │   ■     ●     时：10 洋红
-    第3颗  ▲     ·   │   ·     ·   │   ·     ●     分：1 白 + 2 绿
-    第4颗  ▲     ·   │   ·     ·   │   ·     ✧     秒：2 蓝 + 5 黄
-    第5颗  ▲     ·   │   ·     ·   │   ·     ·     ✧ = 正在呼吸、将在 26 秒亮足的那颗
-    第6颗  ▲     ·   │   ·     ·   │   ·     ·
-    第7颗  ▲     ·   │   ○     ·   │   ●     ·
-    第8颗  ▲     ·   │   ○     ·   │   ●     ·
+    第1颗  ·     ·   │   ◆     ○   │   ■     ●     （左图 = 3 点 12 分 25 秒，光环）
+    第2颗  ·     ▲   │   ·     ·   │   ■     ●     时：1、2、3 点的刻度亮着
+    第3颗  ·     ▲   │   ·     ·   │   ·     ●     分：1 白 + 2 绿
+    第4颗  ·     ▲   │   ·     ·   │   ·     ✧     秒：2 蓝 + 5 黄
+    第5颗  ·     ▲   │   ·     ·   │   ·     ·     ✧ = 正在呼吸、将在 26 秒亮足的那颗
+    第6颗  ·     ·   │   ·     ·   │   ·     ·
+    第7颗  ·     ·   │   ○     ·   │   ●     ·
+    第8颗  ·     ·   │   ○     ·   │   ●     ·
 
 用法：
     python 11_2_stopwatch.py                   # 时钟（默认）：启动时读取电脑系统时间，从这个时间开始走
@@ -50,6 +62,7 @@
     python 11_2_stopwatch.py --start 55        # 秒表：从第 55 秒开始
     python 11_2_stopwatch.py --start 9:55      # 从 9 分 55 秒开始（看分钟进位）
     python 11_2_stopwatch.py --start 10:59:55  # 从 10 时 59 分 55 秒开始（看 10→11 点）
+    python 11_2_stopwatch.py --hour-style tick # 小时只亮当前刻度（默认是光环）
     python 11_2_stopwatch.py --preview         # 不连 BOLT，只在终端预览（可与上面的参数组合）
 
 运行中（输入后按回车）：
@@ -99,9 +112,47 @@ MINUTES = make_digit_group(4, WHITE, GREEN)   # 第 4、5 列
 SECONDS = make_digit_group(7, BLUE, YELLOW)    # 第 7、8 列
 GROUPS = (MINUTES, SECONDS)
 
-# 小时：第 1 列第 1–8 颗，再接第 2 列第 1–8 颗；12 小时制最多 11 颗
-HOUR_PATH = [(0, y) for y in range(8)] + [(1, y) for y in range(8)]
-HOUR_PIXELS = HOUR_PATH[:11]
+# 小时：椭圆表盘（oval-dial-clock 分支）
+# 把第 1、2 列的 16 颗灯看成一个压扁的表盘边框：12 在顶、6 在底，右列 1–5、左列 7–11；
+# 3、6、9、12 各占两颗，像表盘上加粗的刻度。
+DIAL_MARKS = {
+    12: [(0, 0), (1, 0)],
+    1: [(1, 1)], 2: [(1, 2)], 3: [(1, 3), (1, 4)], 4: [(1, 5)], 5: [(1, 6)],
+    6: [(0, 7), (1, 7)],
+    7: [(0, 6)], 8: [(0, 5)], 9: [(0, 3), (0, 4)], 10: [(0, 2)], 11: [(0, 1)],
+}
+HOUR_PIXELS = [(x, y) for x in (0, 1) for y in range(8)]
+DIAL = (10, 0, 10)            # 刻度模式下，没轮到的刻度发一点点暗光，衬出表盘轮廓
+HOUR_GLYPHS = {DIAL: "∙"}
+HOUR_STYLE = "ring"           # ring = 光环（默认），tick = 刻度；由命令行 --hour-style 设置
+
+
+def hour_number(total_seconds: int) -> int:
+    """12 小时制的钟点，1–12（0 点和 12 点都算 12）。"""
+    return (total_seconds // 3600) % 12 or 12
+
+
+def hour_frame(total_seconds: int):
+    """小时部分的画面：{(x, y): 颜色}。"""
+    n = hour_number(total_seconds)
+    frame = {p: OFF for p in HOUR_PIXELS}
+    if HOUR_STYLE == "tick":
+        for marks in DIAL_MARKS.values():
+            for p in marks:
+                frame[p] = DIAL
+        for p in DIAL_MARKS[n]:
+            frame[p] = MAGENTA
+    else:
+        # 光环：从 1 点顺时针亮到当前钟点；12 点时 12 的刻度也亮起，光环合拢成一整圈
+        for k in range(1, n + 1):
+            for p in DIAL_MARKS[k]:
+                frame[p] = MAGENTA
+    return frame
+
+
+def hour_text(total_seconds: int) -> str:
+    n = hour_number(total_seconds)
+    return f"表盘 {n} 点" + ("（光环合拢）" if n == 12 and HOUR_STYLE == "ring" else "")
 
 ALL_PIXELS = HOUR_PIXELS + MINUTES["pixels"] + SECONDS["pixels"]
 
@@ -126,8 +177,7 @@ def steady_frame(whole_seconds: int):
     """某一整秒时的静止画面：只有常亮灯，没有呼吸。"""
     hours, minutes, seconds = split_time(whole_seconds)
     frame = {p: OFF for p in ALL_PIXELS}
-    for p in HOUR_PATH[:hours]:                # 小时：几点亮几颗
-        frame[p] = MAGENTA
+    frame.update(hour_frame(whole_seconds))    # 小时（见上面的小时模块）
     draw_group(frame, MINUTES, minutes)
     draw_group(frame, SECONDS, seconds)
     return frame
@@ -148,6 +198,20 @@ def dim(color, level: float):
     return tuple(int(round(c * level)) for c in color)
 
 
+HOUR_BREATH_STEPS = 30   # 一小时分 30 档：每 2 分钟才变一次亮度，几乎不占蓝牙
+
+
+def hour_breath_level(frac: float) -> float:
+    """一小时之内的"吸气"亮度：0 → 1。曲线和秒的呼吸一样，只是慢了 3600 倍。"""
+    q = int(frac * HOUR_BREATH_STEPS) / HOUR_BREATH_STEPS
+    eased = q * q * (3 - 2 * q)
+    return eased ** GAMMA
+
+
+def brighter(a, b):
+    return a if sum(a) >= sum(b) else b
+
+
 def encode(elapsed: float):
     """把经过的时间编码成像素：返回 {(x, y): 颜色}，y=0 是最上面一颗。
 
@@ -162,6 +226,14 @@ def encode(elapsed: float):
         for p, c in upcoming.items():
             if c != OFF and frame[p] == OFF:
                 frame[p] = dim(c, level)
+    # 小时的呼吸：下一个钟点将要新亮起的灯，用一整个小时慢慢亮起来
+    hour_start = now - now % 3600
+    current_h, next_h = hour_frame(now), hour_frame(hour_start + 3600)
+    h_level = hour_breath_level((elapsed - hour_start) / 3600)
+    if h_level > 0:
+        for p, c in next_h.items():
+            if sum(c) > sum(current_h.get(p, OFF)):      # 比现在更亮的灯，才需要慢慢亮起
+                frame[p] = brighter(frame[p], dim(c, h_level))
     return frame
 
 
@@ -180,12 +252,13 @@ def to_device(p, flip: bool = True):
 
 def describe(elapsed: float) -> str:
     h, m, s = split_time(elapsed)
-    return (f"{h:2d} 时 {m:2d} 分 {s:2d} 秒 = 时[{h} 洋红]  分[{m // 10} 白 + {m % 10} 绿]"
+    return (f"{hour_number(int(elapsed)):2d} 时 {m:2d} 分 {s:2d} 秒 = 时[{hour_text(int(elapsed))}]"
+            f"  分[{m // 10} 白 + {m % 10} 绿]"
             f"  秒[{s // 10} 蓝 + {s % 10} 黄]")
 
 
 def preview_text(frame, elapsed: float) -> str:
-    chars = {OFF: "·", WHITE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●", MAGENTA: "▲"}
+    chars = {OFF: "·", WHITE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●", MAGENTA: "▲", **HOUR_GLYPHS}
     level = breath_level(elapsed - int(elapsed))
     glyph = "·" if level < 0.02 else "∘" if level < 0.25 else "✧" if level < 0.7 else "✦"
     lines = [f"累计 {elapsed:7.1f} 秒   " + describe(elapsed)]
@@ -472,9 +545,13 @@ def main():
     g.add_argument("--start", type=parse_start, default=None,
                    help="秒表模式：从指定时间开始，如 55、9:55、10:59:55")
     g.add_argument("--now", action="store_true", help=argparse.SUPPRESS)  # 旧参数：时钟现在是默认模式
+    p.add_argument("--hour-style", choices=["ring", "tick"], default="ring",
+                   help="小时表盘：ring = 光环（默认），tick = 只亮当前刻度")
     p.add_argument("--preview", action="store_true", help="不连 BOLT，只在终端预览")
     p.add_argument("--no-flip", action="store_true", help="不做上下翻转（一般不需要）")
     a = p.parse_args()
+    global HOUR_STYLE
+    HOUR_STYLE = a.hour_style
 
     # 默认是时钟：一启动就读取电脑的系统时间
     clock_mode = not a.stopwatch and a.start is None
