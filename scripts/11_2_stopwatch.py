@@ -33,16 +33,16 @@
     第8颗  ▲     ·   │   ○     ·   │   ●     ·
 
 用法：
-    python 11_2_stopwatch.py                   # 秒表：从 0 开始计时
-    python 11_2_stopwatch.py --now             # 时钟：从当前系统时间开始走
-    python 11_2_stopwatch.py --start 55        # 从第 55 秒开始
+    python 11_2_stopwatch.py                   # 时钟（默认）：启动时读取电脑系统时间，从这个时间开始走
+    python 11_2_stopwatch.py --stopwatch       # 秒表：从 0 开始计时
+    python 11_2_stopwatch.py --start 55        # 秒表：从第 55 秒开始
     python 11_2_stopwatch.py --start 9:55      # 从 9 分 55 秒开始（看分钟进位）
     python 11_2_stopwatch.py --start 10:59:55  # 从 10 时 59 分 55 秒开始（看 10→11 点）
     python 11_2_stopwatch.py --preview         # 不连 BOLT，只在终端预览（可与上面的参数组合）
 
 运行中（输入后按回车）：
-    回车   暂停 / 继续
-    r      清零重新开始
+    回车   暂停 / 继续（时钟模式下"继续"会重新对准系统时间）
+    r      时钟模式：重新对准系统时间；秒表模式：清零重新开始
     q      退出（也可以按 Ctrl+C）
 """
 import argparse
@@ -230,7 +230,7 @@ def apply_update(api, cmd, colors, flip, state):
 class Stopwatch:
     def __init__(self, start: float = 0.0, running: bool = True, follow_clock: bool = False):
         self.lock = threading.Lock()
-        self.follow_clock = follow_clock  # --now：起点取"开始计时那一刻"的系统时间
+        self.follow_clock = follow_clock  # 时钟模式：起点取系统时间
         if follow_clock:
             start = now_seconds()
         self.start = start          # 命令行 --start 指定的起点
@@ -266,16 +266,24 @@ class Stopwatch:
                 self.base += time.monotonic() - self.t0
                 self.running = False
             else:
+                if self.follow_clock:
+                    self.base = now_seconds()   # 时钟不该"暂停后慢几分钟"：继续时直接对准系统时间
                 self.t0 = time.monotonic()
                 self.running = True
             self.version += 1
             return self.running
 
     def reset(self):
+        """秒表模式：清零；时钟模式：重新对准系统时间。"""
         with self.lock:
-            self.base = 0.0
+            self.base = now_seconds() if self.follow_clock else 0.0
             self.t0 = time.monotonic()
             self.version += 1
+
+
+def help_line(sw: Stopwatch) -> str:
+    r_text = "重新对时" if sw.follow_clock else "清零"
+    return f"命令：回车=暂停/继续  r={r_text}  q=退出"
 
 
 def keyboard_loop(sw: Stopwatch):
@@ -289,11 +297,11 @@ def keyboard_loop(sw: Stopwatch):
             print("▶ 继续" if sw.toggle() else "⏸ 暂停（回车继续）")
         elif cmd == "r":
             sw.reset()
-            print("↺ 已清零")
+            print("↺ 已重新对准系统时间" if sw.follow_clock else "↺ 已清零")
         elif cmd in ("q", "quit", "exit"):
             break
         else:
-            print("命令：回车=暂停/继续  r=清零  q=退出")
+            print(help_line(sw))
     sw.quit = True
 
 
@@ -330,7 +338,7 @@ def run_bolt(sw: Stopwatch, flip: bool):
         # 先把起始画面画好（如 --start 55 要点亮 11 颗灯，要花一点时间），
         # 画完再开始计时：蓝牙连接和初始绘制的时间都不计入秒表
         if sw.follow_clock:
-            sw.start = now_seconds()      # --now：用连接完成这一刻的系统时间
+            sw.start = now_seconds()      # 时钟模式：用连接完成这一刻的系统时间
         fill_state = {}
         initial = encode(sw.start)
         blank = {p: OFF for p in FULL_GRID}
@@ -339,7 +347,7 @@ def run_bolt(sw: Stopwatch, flip: bool):
         if sw.follow_clock:
             # 画初始画面也要时间，时钟模式下直接对齐到画完这一刻的系统时间
             sw.start = now_seconds()
-        print("运行中 —— 回车=暂停/继续  r=清零  q=退出")
+        print("运行中 —— " + help_line(sw))
         h, m, s = split_time(sw.start)
         print(f"连接完成，从 {h} 时 {m} 分 {s} 秒开始计时")
         sw.restart_from(sw.start)
@@ -389,17 +397,31 @@ def run_bolt(sw: Stopwatch, flip: bool):
 def main():
     p = argparse.ArgumentParser(description="点阵时、分、秒（时：第 1、2 列；分：第 4、5 列；秒：第 7、8 列）")
     g = p.add_mutually_exclusive_group()
-    g.add_argument("--start", type=parse_start, default=0.0,
-                   help="起始时间：秒数如 55、分:秒 如 9:55、时:分:秒 如 10:59:55，默认 0")
-    g.add_argument("--now", action="store_true", help="从当前系统时间开始走（当时钟用）")
+    g.add_argument("--stopwatch", action="store_true", help="秒表模式：从 0 开始计时")
+    g.add_argument("--start", type=parse_start, default=None,
+                   help="秒表模式：从指定时间开始，如 55、9:55、10:59:55")
+    g.add_argument("--now", action="store_true", help=argparse.SUPPRESS)  # 旧参数：时钟现在是默认模式
     p.add_argument("--preview", action="store_true", help="不连 BOLT，只在终端预览")
     p.add_argument("--no-flip", action="store_true", help="不做上下翻转（一般不需要）")
     a = p.parse_args()
+
+    # 默认是时钟：一启动就读取电脑的系统时间
+    clock_mode = not a.stopwatch and a.start is None
+    start = 0.0 if a.start is None else a.start
+    sw = Stopwatch(start, running=a.preview, follow_clock=clock_mode)
+    if clock_mode:
+        h24 = int(sw.start // 3600)
+        print(f"已读取系统时间 {h24:02d}:{int(sw.start % 3600 // 60):02d}:{int(sw.start % 60):02d}"
+              f"（点阵按 12 小时制显示{'' if a.preview else '；连上 BOLT 后会再对一次时'}）")
+    else:
+        h, m, s_ = split_time(start)
+        print(f"秒表模式：从 {h} 时 {m} 分 {s_} 秒开始")
+
     if a.preview:
-        run_preview(Stopwatch(a.start, follow_clock=a.now))
+        run_preview(sw)
     else:
         # 连 BOLT 时先不走表，等连接和初始画面完成后由 run_bolt 启动
-        run_bolt(Stopwatch(a.start, running=False, follow_clock=a.now), flip=not a.no_flip)
+        run_bolt(sw, flip=not a.no_flip)
 
 
 if __name__ == "__main__":
