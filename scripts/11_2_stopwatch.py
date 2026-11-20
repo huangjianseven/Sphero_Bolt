@@ -5,10 +5,21 @@
 
 编码方式（列、颗都从 1 开始数；颗从上往下数）
 
-【小时】第 1、2 列，洋红灯 ▲
-    几点就亮几颗：第 1 列从上到下排满 8 颗后，再从第 2 列第 1 颗往下排
-    0 点、12 点不亮；11 点 – 11:59 亮 11 颗（第 1 列 8 颗 + 第 2 列 3 颗）
-    按 12 小时制：13 点亮 1 颗，23 点亮 11 颗
+【小时】第 1、2 列，日升日落（sunrise-clock 分支），24 小时制
+    白天是太阳，夜里是月亮；看它的高度和颜色就知道是什么时候。
+
+          第1列（升）  第2列（落）
+    第2颗    12 / 0      12 / 0      ← 正午（太阳）/ 子夜（月亮）：两列同亮
+    第3颗    11 / 23      13 / 1
+    第4颗    10 / 22      14 / 2
+    第5颗     9 / 21      15 / 3
+    第6颗     8 / 20      16 / 4
+    第7颗     7 / 19      17 / 5
+    第8颗     6           18          ← 地平线：日出 / 日落
+                （每格左边是太阳的钟点，右边是月亮的钟点）
+
+    太阳：贴近地平线是深橙红，越高越暖、越亮，正午近乎暖白；傍晚比清晨更红一些
+    月亮：清冷的蓝白，越高越亮
 
 【分钟、秒】"十位 + 个位"，全部常亮，不再闪烁：
 
@@ -18,7 +29,6 @@
     个位路径        第4列第7、8颗 → 第5列1–8颗   第7列第7、8颗 → 第8列1–8颗
     个位            绿灯 ○                      黄灯 ●
 
-    时   = 洋红灯数
     分钟 = 白灯数 × 10 + 绿灯数
     秒   = 蓝灯数 × 10 + 黄灯数
 
@@ -29,20 +39,21 @@
     在整秒的那一刻正好亮足，成为一颗安静的常亮灯。随后下一颗开始呼吸。
     · 平时呼吸的是下一颗黄灯
     · x9 秒时呼吸的是下一颗蓝灯 —— 进位前的那一秒，十位慢慢亮起；整秒时九颗黄灯同时熄灭
-    · 59 秒时呼吸的是下一颗分钟灯；59 分 59 秒时呼吸的是下一颗小时灯
+    · 59 秒时呼吸的是下一颗分钟灯
+    · 小时更慢：下一个钟点的灯用整整一个小时慢慢亮起（一小时一口气），整点时正好亮足
     · 亮度按人眼的感知曲线（smoothstep + gamma 2.2）上升，看起来是匀速、柔和地亮起
     · 熄灭不做渐变：进位就在整秒那一刻干净利落地发生
     分钟不再有闪烁灯，整个画面每秒只有一颗灯在缓缓变化。
 
          第1列 第2列 │ 第4列 第5列 │ 第7列 第8列
-    第1颗  ▲     ▲   │   ◆     ○   │   ■     ●     （左图 = 10 点 12 分 25 秒）
-    第2颗  ▲     ▲   │   ·     ·   │   ■     ●     时：10 洋红
-    第3颗  ▲     ·   │   ·     ·   │   ·     ●     分：1 白 + 2 绿
-    第4颗  ▲     ·   │   ·     ·   │   ·     ✧     秒：2 蓝 + 5 黄
-    第5颗  ▲     ·   │   ·     ·   │   ·     ·     ✧ = 正在呼吸、将在 26 秒亮足的那颗
-    第6颗  ▲     ·   │   ·     ·   │   ·     ·
-    第7颗  ▲     ·   │   ○     ·   │   ●     ·
-    第8颗  ▲     ·   │   ○     ·   │   ●     ·
+    第1颗  ·     ·   │   ◆     ○   │   ■     ●     （左图 = 15 点 12 分 25 秒）
+    第2颗  ·     ·   │   ·     ·   │   ■     ●     时：午后，太阳在第 2 列第 5 颗（高度 3）
+    第3颗  ·     ·   │   ·     ·   │   ·     ●     分：1 白 + 2 绿
+    第4颗  ·     ·   │   ·     ·   │   ·     ✧     秒：2 蓝 + 5 黄
+    第5颗  ·     ☼   │   ·     ·   │   ·     ·     ✧ = 正在呼吸、将在 26 秒亮足的那颗
+    第6颗  ·     ·   │   ·     ·   │   ·     ·
+    第7颗  ·     ·   │   ○     ·   │   ●     ·
+    第8颗  ·     ·   │   ○     ·   │   ●     ·
 
 用法：
     python 11_2_stopwatch.py                   # 时钟（默认）：启动时读取电脑系统时间，从这个时间开始走
@@ -99,9 +110,62 @@ MINUTES = make_digit_group(4, WHITE, GREEN)   # 第 4、5 列
 SECONDS = make_digit_group(7, BLUE, YELLOW)    # 第 7、8 列
 GROUPS = (MINUTES, SECONDS)
 
-# 小时：第 1 列第 1–8 颗，再接第 2 列第 1–8 颗；12 小时制最多 11 颗
-HOUR_PATH = [(0, y) for y in range(8)] + [(1, y) for y in range(8)]
-HOUR_PIXELS = HOUR_PATH[:11]
+# 小时：日升日落（sunrise-clock 分支），24 小时制
+# 白天（6–18 点）是太阳，夜里（19–5 点）是月亮。高度表示时刻：
+#   太阳：6 点在第 1 列最底（第 8 颗）升起，每小时升一格，12 点到第 2 颗、两列同亮（日在中天），
+#         下午移到第 2 列，每小时落一格，18 点落到第 8 颗。
+#   月亮：19 点从第 1 列第 7 颗升起，0 点到第 2 颗、两列同亮（子夜），之后在第 2 列落下，5 点到第 7 颗。
+# 颜色跟着高度走：贴近地平线是深橙红，越高越亮、越暖白；傍晚比清晨更红一些。月亮是清冷的蓝白。
+HOUR_PIXELS = [(x, y) for x in (0, 1) for y in range(8)]
+
+SUN_MORNING = [  # 高度 0（地平线）→ 6（正午）
+    (255, 45, 0), (255, 85, 5), (255, 125, 15), (255, 160, 40), (255, 190, 80), (255, 215, 120), (255, 235, 170)]
+SUN_EVENING = [(r, int(g * 0.72), int(b * 0.5)) for r, g, b in SUN_MORNING]   # 夕阳更红
+MOON = [  # 高度 1 → 6（子夜）：越高越亮
+    (30, 55, 160), (40, 70, 185), (55, 90, 210), (70, 110, 230), (90, 130, 245), (120, 155, 255)]
+
+HOUR_GLYPHS = {**{c: "☼" for c in SUN_MORNING + SUN_EVENING}, **{c: "☾" for c in MOON}}
+
+PERIODS = {0: "子夜·月在中天", 1: "夜·月落", 2: "夜·月落", 3: "夜·月落", 4: "夜·月落", 5: "黎明前·月将落",
+           6: "日出", 7: "清晨", 8: "清晨", 9: "上午", 10: "上午", 11: "上午", 12: "正午·日在中天",
+           13: "午后", 14: "午后", 15: "午后", 16: "傍晚", 17: "傍晚", 18: "日落",
+           19: "夜·月升", 20: "夜·月升", 21: "夜·月升", 22: "夜·月升", 23: "夜·月升"}
+
+
+def hour_number(total_seconds: int) -> int:
+    """24 小时制的钟点，0–23。"""
+    return (total_seconds // 3600) % 24
+
+
+def sky(total_seconds: int):
+    """返回 (天体, 高度 0–6, 所在列 ['L'/'R'/'LR'])。"""
+    h = hour_number(total_seconds)
+    if 6 <= h <= 18:
+        height, body, side = 6 - abs(h - 12), "sun", ("L" if h < 12 else "R" if h > 12 else "LR")
+    else:
+        hh = h if h >= 12 else h + 24          # 19…29，24 = 子夜
+        height, body, side = 6 - abs(hh - 24), "moon", ("L" if hh < 24 else "R" if hh > 24 else "LR")
+    return body, height, side
+
+
+def hour_frame(total_seconds: int):
+    """小时部分的画面：{(x, y): 颜色}。"""
+    frame = {p: OFF for p in HOUR_PIXELS}
+    body, height, side = sky(total_seconds)
+    y = 7 - height                               # 高度 0 = 第 8 颗，高度 6 = 第 2 颗
+    if body == "sun":
+        color = (SUN_MORNING if hour_number(total_seconds) <= 12 else SUN_EVENING)[height]
+    else:
+        color = MOON[height - 1]
+    for x, s in ((0, "L"), (1, "R")):
+        if s in side:
+            frame[(x, y)] = color
+    return frame
+
+
+def hour_text(total_seconds: int) -> str:
+    body, height, _ = sky(total_seconds)
+    return f"{PERIODS[hour_number(total_seconds)]}，{'太阳' if body == 'sun' else '月亮'}高度 {height}/6"
 
 ALL_PIXELS = HOUR_PIXELS + MINUTES["pixels"] + SECONDS["pixels"]
 
@@ -126,8 +190,7 @@ def steady_frame(whole_seconds: int):
     """某一整秒时的静止画面：只有常亮灯，没有呼吸。"""
     hours, minutes, seconds = split_time(whole_seconds)
     frame = {p: OFF for p in ALL_PIXELS}
-    for p in HOUR_PATH[:hours]:                # 小时：几点亮几颗
-        frame[p] = MAGENTA
+    frame.update(hour_frame(whole_seconds))    # 小时（见上面的小时模块）
     draw_group(frame, MINUTES, minutes)
     draw_group(frame, SECONDS, seconds)
     return frame
@@ -148,6 +211,20 @@ def dim(color, level: float):
     return tuple(int(round(c * level)) for c in color)
 
 
+HOUR_BREATH_STEPS = 30   # 一小时分 30 档：每 2 分钟才变一次亮度，几乎不占蓝牙
+
+
+def hour_breath_level(frac: float) -> float:
+    """一小时之内的"吸气"亮度：0 → 1。曲线和秒的呼吸一样，只是慢了 3600 倍。"""
+    q = int(frac * HOUR_BREATH_STEPS) / HOUR_BREATH_STEPS
+    eased = q * q * (3 - 2 * q)
+    return eased ** GAMMA
+
+
+def brighter(a, b):
+    return a if sum(a) >= sum(b) else b
+
+
 def encode(elapsed: float):
     """把经过的时间编码成像素：返回 {(x, y): 颜色}，y=0 是最上面一颗。
 
@@ -162,6 +239,14 @@ def encode(elapsed: float):
         for p, c in upcoming.items():
             if c != OFF and frame[p] == OFF:
                 frame[p] = dim(c, level)
+    # 小时的呼吸：下一个钟点将要新亮起的灯，用一整个小时慢慢亮起来
+    hour_start = now - now % 3600
+    current_h, next_h = hour_frame(now), hour_frame(hour_start + 3600)
+    h_level = hour_breath_level((elapsed - hour_start) / 3600)
+    if h_level > 0:
+        for p, c in next_h.items():
+            if sum(c) > sum(current_h.get(p, OFF)):      # 比现在更亮的灯，才需要慢慢亮起
+                frame[p] = brighter(frame[p], dim(c, h_level))
     return frame
 
 
@@ -180,12 +265,13 @@ def to_device(p, flip: bool = True):
 
 def describe(elapsed: float) -> str:
     h, m, s = split_time(elapsed)
-    return (f"{h:2d} 时 {m:2d} 分 {s:2d} 秒 = 时[{h} 洋红]  分[{m // 10} 白 + {m % 10} 绿]"
+    return (f"{hour_number(int(elapsed)):2d} 时 {m:2d} 分 {s:2d} 秒 = 时[{hour_text(int(elapsed))}]"
+            f"  分[{m // 10} 白 + {m % 10} 绿]"
             f"  秒[{s // 10} 蓝 + {s % 10} 黄]")
 
 
 def preview_text(frame, elapsed: float) -> str:
-    chars = {OFF: "·", WHITE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●", MAGENTA: "▲"}
+    chars = {OFF: "·", WHITE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●", MAGENTA: "▲", **HOUR_GLYPHS}
     level = breath_level(elapsed - int(elapsed))
     glyph = "·" if level < 0.02 else "∘" if level < 0.25 else "✧" if level < 0.7 else "✦"
     lines = [f"累计 {elapsed:7.1f} 秒   " + describe(elapsed)]
@@ -483,7 +569,7 @@ def main():
     if clock_mode:
         h24 = int(sw.start // 3600)
         print(f"已读取系统时间 {h24:02d}:{int(sw.start % 3600 // 60):02d}:{int(sw.start % 60):02d}"
-              f"（点阵按 12 小时制显示{'' if a.preview else '；连上 BOLT 后会再对一次时'}）")
+              f"（点阵按 24 小时日升日落显示{'' if a.preview else '；连上 BOLT 后会再对一次时'}）")
     else:
         h, m, s_ = split_time(start)
         print(f"秒表模式：从 {h} 时 {m} 分 {s_} 秒开始")
