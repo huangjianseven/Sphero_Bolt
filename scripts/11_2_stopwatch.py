@@ -1,27 +1,36 @@
-"""Step 11_2：点阵时钟第二版 —— 八进制秒表（只用最右边两列）。
+"""Step 11_2：点阵时钟第二版 —— 十进制秒表（只用最右边两列）。
 
-编码方式（从上往下看最右边两列）：
+编码方式（列、颗都从 1 开始数；颗从上往下数）：
 
-    第 7 列（倒数第 2 列）  蓝灯 = 秒数的八进制"八位"（0–7，每个蓝灯代表 8 秒）
-    第 8 列（最右一列）     黄灯 = 秒数的八进制个位（0–7）
-    正在走的这一秒          黄色列里，紧接在常亮黄灯下面的那个灯闪烁
+    第 7 列 第 1–5 颗   蓝灯 = 秒数的十位（0–5），从上往下依次点亮
+    第 7 列 第 6 颗     空着，用来隔开十位和个位
+    个位黄灯的路径（共 10 个位置）：
+        第 7 列 第 7 颗 → 第 7 列 第 8 颗 → 第 8 列 第 1 颗 → … → 第 8 列 第 8 颗
+    常亮黄灯 = 秒数的个位（0–9），沿路径依次点亮
+    闪烁黄灯 = 正在走的这一秒，位于常亮黄灯之后的下一个位置
 
-    秒数 = 蓝灯数 × 8 + 常亮黄灯数（闪烁的灯表示"这一秒正在走"）
-
-    例：1.9 秒   →  1 个常亮黄灯 + 1 个闪烁黄灯
-        8 秒     →  进位：1 个蓝灯 + 1 个闪烁黄灯（黄灯清零）
-        59.x 秒  →  59 = 7×8 + 3  →  7 个蓝灯 + 3 个常亮黄灯 + 1 个闪烁黄灯
-        60 秒    →  回到 0（分钟以后用其他列显示）
+    秒数 = 蓝灯数 × 10 + 常亮黄灯数
 
          第7列 第8列
-    行1   ■     ●        ● 常亮黄   ✱ 闪烁黄
-    行2   ·     ✱        ■ 蓝       · 不亮
-    ...                  （上图 = 9.x 秒：1 蓝 + 1 黄 + 闪烁）
+    第1颗  ■     ●          ■ 蓝   ● 常亮黄   ✱ 闪烁黄   · 不亮
+    第2颗  ■     ●
+    第3颗  ·     ●          （左图 = 25.x 秒：2 蓝 + 5 黄 + 闪烁）
+    第4颗  ·     ✱
+    第5颗  ·     ·
+    第6颗  ·     ·          ← 第 7 列第 6 颗始终空着
+    第7颗  ●     ·          ← 个位起点
+    第8颗  ●     ·
+
+    0.x 秒  → 第 7 列第 7 颗闪烁
+    9.x 秒  → 9 个常亮黄 + 第 8 列第 8 颗闪烁
+    10 秒   → 进位：1 个蓝灯 + 第 7 列第 7 颗闪烁（黄灯清零）
+    59.x 秒 → 5 个蓝灯 + 9 个常亮黄 + 闪烁
+    60 秒   → 回到 0
 
 用法：
-    python 11_2_octal_stopwatch.py              # 启动即开始计时
-    python 11_2_octal_stopwatch.py --start 55   # 从第 55 秒开始（方便看 59→0）
-    python 11_2_octal_stopwatch.py --preview    # 不连 BOLT，只在终端预览
+    python 11_2_stopwatch.py              # 启动即开始计时
+    python 11_2_stopwatch.py --start 55   # 从第 55 秒开始（方便看 59→0）
+    python 11_2_stopwatch.py --preview    # 不连 BOLT，只在终端预览
 
 运行中（输入后按回车）：
     回车   暂停 / 继续
@@ -32,31 +41,34 @@ import argparse
 import threading
 import time
 
-BLUE_COL = 6            # 第 7 列 = 倒数第 2 列（x 从 0 开始数，最左是 0，最右是 7）
-YELLOW_COL = 7          # 第 8 列 = 最右一列
-BLINK_ON_FRACTION = 0.5 # 每秒前半秒亮、后半秒灭
+# 坐标用 (x, y)：x 是列、y 是颗，都从 0 开始数（第 7 列 → x=6，第 1 颗 → y=0）
+TENS_PATH = [(6, y) for y in range(5)]                  # 第 7 列第 1–5 颗
+ONES_PATH = [(6, 6), (6, 7)] + [(7, y) for y in range(8)]  # 第 7 列第 7、8 颗 + 第 8 列第 1–8 颗
+GAP = (6, 5)                                            # 第 7 列第 6 颗：空着
+BLINK_ON_FRACTION = 0.5                                 # 每秒前半秒亮、后半秒灭
 
 OFF = (0, 0, 0)
 YELLOW = (255, 200, 0)
 BLUE = (0, 80, 255)
 
 PREVIEW_CHARS = {OFF: "·", YELLOW: "●", BLUE: "■"}
+ALL_PIXELS = [(x, y) for x in (6, 7) for y in range(8)]
 
 
 # ---------------------------------------------------------------- 编码
 def encode(elapsed: float):
-    """把经过的秒数编码成两列像素：返回 {(x, y): 颜色}，y=0 是最上面一行。"""
+    """把经过的秒数编码成两列像素：返回 {(x, y): 颜色}，y=0 是最上面一颗。"""
     sec = int(elapsed) % 60
     frac = elapsed - int(elapsed)
-    ones, eights = sec % 8, sec // 8
+    tens, ones = divmod(sec, 10)
     blink_on = frac < BLINK_ON_FRACTION
 
-    frame = {(x, y): OFF for x in (YELLOW_COL, BLUE_COL) for y in range(8)}
-    for y in range(ones):                      # 常亮黄灯：八进制个位
-        frame[(YELLOW_COL, y)] = YELLOW
-    frame[(YELLOW_COL, ones)] = YELLOW if blink_on else OFF   # 闪烁：正在走的这一秒
-    for y in range(eights):                    # 蓝灯：八进制八位
-        frame[(BLUE_COL, y)] = BLUE
+    frame = {p: OFF for p in ALL_PIXELS}
+    for p in TENS_PATH[:tens]:                 # 蓝灯：十位
+        frame[p] = BLUE
+    for p in ONES_PATH[:ones]:                 # 常亮黄灯：个位
+        frame[p] = YELLOW
+    frame[ONES_PATH[ones]] = YELLOW if blink_on else OFF   # 闪烁：正在走的这一秒
     return frame
 
 
@@ -68,17 +80,15 @@ def to_device(p, flip: bool = True):
 
 def preview_text(frame, elapsed: float) -> str:
     sec = int(elapsed) % 60
-    lines = [f"{elapsed:6.1f} 秒   八进制 {sec // 8}{sec % 8}   ({sec // 8}×8 + {sec % 8} = {sec})"]
+    tens, ones = divmod(sec, 10)
+    blink_pos = ONES_PATH[ones]
+    lines = [f"{elapsed:6.1f} 秒   = {tens} 蓝 × 10 + {ones} 黄"]
     for y in range(8):
         cells = []
-        for x in range(8):
-            if x in (YELLOW_COL, BLUE_COL):
-                c = frame[(x, y)]
-                is_blink = x == YELLOW_COL and y == sec % 8
-                cells.append("✱" if is_blink and c == YELLOW else PREVIEW_CHARS[c])
-            else:
-                cells.append(" ")
-        lines.append(" ".join(cells))
+        for x in (6, 7):
+            c = frame[(x, y)]
+            cells.append("✱" if (x, y) == blink_pos and c == YELLOW else PREVIEW_CHARS[c])
+        lines.append("  " + "  ".join(cells))
     return "\n".join(lines)
 
 
@@ -145,7 +155,7 @@ def run_preview(sw: Stopwatch):
             time.sleep(0.02)
 
     threading.Thread(target=loop, daemon=True).start()
-    print("终端预览（● 常亮黄  ✱ 闪烁黄  ■ 蓝）")
+    print("终端预览（左列=第7列 右列=第8列；■ 蓝  ● 常亮黄  ✱ 闪烁黄）")
     keyboard_loop(sw)
 
 
@@ -162,13 +172,13 @@ def run_bolt(sw: Stopwatch, flip: bool):
         api.clear_matrix()
 
         def loop():
-            shown = {p: OFF for p in encode(0)}
+            shown = {p: OFF for p in ALL_PIXELS}
             last_sec = None
             try:
                 while not sw.quit:
                     e = sw.elapsed()
                     frame = encode(e)
-                    # 只发送变化的像素：每秒约 2–3 条蓝牙命令
+                    # 只发送变化的像素：平时每秒 1–2 条蓝牙命令
                     for p, c in frame.items():
                         if c != shown[p]:
                             x, y = to_device(p, flip)
@@ -177,8 +187,7 @@ def run_bolt(sw: Stopwatch, flip: bool):
                     sec = int(e) % 60
                     if sec != last_sec:
                         last_sec = sec
-                        print(f"\r{e:6.1f} 秒  八进制 {sec // 8}{sec % 8}  "
-                              f"= {sec // 8} 蓝 + {sec % 8} 黄   ", end="", flush=True)
+                        print(f"\r{e:6.1f} 秒  = {sec // 10} 蓝 + {sec % 10} 黄   ", end="", flush=True)
                     time.sleep(0.02)
             except Exception as ex:
                 print(f"\n⚠️ 刷新出错：{ex!r}，请按回车或 Ctrl+C 退出")
@@ -197,7 +206,7 @@ def run_bolt(sw: Stopwatch, flip: bool):
 
 
 def main():
-    p = argparse.ArgumentParser(description="八进制秒表（点阵最右两列）")
+    p = argparse.ArgumentParser(description="十进制秒表（点阵最右两列）")
     p.add_argument("--start", type=float, default=0.0, help="从第几秒开始，默认 0")
     p.add_argument("--preview", action="store_true", help="不连 BOLT，只在终端预览")
     p.add_argument("--no-flip", action="store_true", help="不做上下翻转（一般不需要）")
