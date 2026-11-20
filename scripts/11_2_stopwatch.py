@@ -2,7 +2,7 @@
 
 编码方式（列、颗都从 1 开始数；颗从上往下数）
 
-【小时】第 1、2 列，红灯 ▲，不进位、不闪烁
+【小时】第 1、2 列，洋红灯 ▲，不进位、不闪烁
     几点就亮几颗：第 1 列从上到下排满 8 颗后，再从第 2 列第 1 颗往下排
     0 点、12 点不亮；11 点 – 11:59 亮 11 颗（第 1 列 8 颗 + 第 2 列 3 颗）
     按 12 小时制：13 点亮 1 颗，23 点亮 11 颗
@@ -10,22 +10,22 @@
 【分钟、秒】用同一套"十位 + 个位 + 闪烁"规则：
 
                     分钟（第 4、5 列）          秒（第 7、8 列）
-    十位 1–5 颗     第 4 列，紫灯 ◆             第 7 列，蓝灯 ■
+    十位 1–5 颗     第 4 列，白灯 ◆             第 7 列，蓝灯 ■
     第 6 颗         第 4 列，空着               第 7 列，空着
     个位路径        第4列第7、8颗 → 第5列1–8颗   第7列第7、8颗 → 第8列1–8颗
     个位常亮        绿灯 ○                      黄灯 ●
     闪烁（正在走）   绿灯 ⊙，亮 1 秒、灭 1 秒     黄灯 ✱，亮半秒、灭半秒
 
-    时   = 红灯数
-    分钟 = 紫灯数 × 10 + 常亮绿灯数
+    时   = 洋红灯数
+    分钟 = 白灯数 × 10 + 常亮绿灯数
     秒   = 蓝灯数 × 10 + 常亮黄灯数
 
     第 3 列、第 6 列不用，用来隔开时、分、秒。
 
          第1列 第2列 │ 第4列 第5列 │ 第7列 第8列
     第1颗  ▲     ▲   │   ◆     ○   │   ■     ●     （左图 = 10 点 12 分 25 秒）
-    第2颗  ▲     ▲   │   ·     ⊙   │   ■     ●     时：10 红
-    第3颗  ▲     ·   │   ·     ·   │   ·     ●     分：1 紫 + 2 绿 + 闪烁
+    第2颗  ▲     ▲   │   ·     ⊙   │   ■     ●     时：10 洋红
+    第3颗  ▲     ·   │   ·     ·   │   ·     ●     分：1 白 + 2 绿 + 闪烁
     第4颗  ▲     ·   │   ·     ·   │   ·     ✱     秒：2 蓝 + 5 黄 + 闪烁
     第5颗  ▲     ·   │   ·     ·   │   ·     ·
     第6颗  ▲     ·   │   ·     ·   │   ·     ·
@@ -55,12 +55,12 @@ OFF = (0, 0, 0)
 BLUE = (0, 80, 255)          # 秒十位
 YELLOW = (255, 200, 0)       # 秒个位（常亮和闪烁同色）
 # 分钟（和秒的颜色区分开）
-PURPLE = (180, 0, 255)       # 分十位
+WHITE = (255, 255, 255)      # 分十位（白：避免和洋红色的小时混淆）
 GREEN = (0, 255, 60)         # 分个位（常亮和闪烁同色）
 # 小时（和分、秒的颜色区分开）
-RED = (255, 0, 0)            # 小时
+MAGENTA = (255, 0, 255)      # 小时：洋红
 
-PALETTE = (OFF, YELLOW, BLUE, PURPLE, GREEN, RED)   # 连 BOLT 时要用到的全部颜色
+PALETTE = (OFF, YELLOW, BLUE, WHITE, GREEN, MAGENTA)   # 连 BOLT 时要用到的全部颜色
 
 
 def make_digit_group(col: int, tens_color, ones_color, blink_period: float):
@@ -80,7 +80,7 @@ def make_digit_group(col: int, tens_color, ones_color, blink_period: float):
     }
 
 
-MINUTES = make_digit_group(4, PURPLE, GREEN, blink_period=2.0)   # 第 4、5 列
+MINUTES = make_digit_group(4, WHITE, GREEN, blink_period=2.0)   # 第 4、5 列
 SECONDS = make_digit_group(7, BLUE, YELLOW, blink_period=1.0)    # 第 7、8 列
 GROUPS = (MINUTES, SECONDS)
 
@@ -114,7 +114,7 @@ def encode(elapsed: float):
     hours, minutes, seconds = split_time(elapsed)
     frame = {p: OFF for p in ALL_PIXELS}
     for p in HOUR_PATH[:hours]:                # 小时：几点亮几颗，不闪烁
-        frame[p] = RED
+        frame[p] = MAGENTA
     draw_group(frame, MINUTES, minutes, elapsed)
     draw_group(frame, SECONDS, seconds, elapsed)
     return frame
@@ -128,14 +128,14 @@ def to_device(p, flip: bool = True):
 
 def describe(elapsed: float) -> str:
     h, m, s = split_time(elapsed)
-    return (f"{h:2d} 时 {m:2d} 分 {s:2d} 秒 = 时[{h} 红]  分[{m // 10} 紫 + {m % 10} 绿]"
+    return (f"{h:2d} 时 {m:2d} 分 {s:2d} 秒 = 时[{h} 洋红]  分[{m // 10} 白 + {m % 10} 绿]"
             f"  秒[{s // 10} 蓝 + {s % 10} 黄]")
 
 
 def preview_text(frame, elapsed: float) -> str:
     _, minutes, seconds = split_time(elapsed)
     blinks = {MINUTES["ones_path"][minutes % 10]: "⊙", SECONDS["ones_path"][seconds % 10]: "✱"}
-    chars = {OFF: "·", PURPLE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●", RED: "▲"}
+    chars = {OFF: "·", WHITE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●", MAGENTA: "▲"}
     lines = [f"累计 {elapsed:7.1f} 秒   " + describe(elapsed)]
     for y in range(8):
         row = []
@@ -166,6 +166,66 @@ def now_seconds() -> float:
     return n.hour * 3600 + n.minute * 60 + n.second + n.microsecond / 1e6
 
 
+# ---------------------------------------------------------------- 批量刷新
+FULL_GRID = [(x, y) for x in range(8) for y in range(8)]
+
+
+def plan_updates(target, shown):
+    """把"当前画面 → 目标画面"的变化合并成尽量少的矩形填充命令。
+
+    BOLT 每条点阵命令都要单独走一次蓝牙（实测每条几十毫秒）。逐颗更新时，整点要改 30 颗左右，
+    会超过 1 秒，导致漏显一秒（见 11_2 测试报告 7.1）。这里按列找"目标颜色相同的连续一段"，
+    用一条 set_matrix_fill 画完；左右相邻两列如果是完全相同的一段，再合并成一个矩形。
+    目标颜色相同、本来就已经是这个颜色的像素也可以顺带覆盖，结果不变，但能把段连得更长。
+
+    返回 [(x1, x2, y1, y2, 颜色), ...]，坐标是"人看到的坐标"（y=0 在上），两端都包含。
+    """
+    runs = []
+    for x in range(8):
+        covered = set()
+        for y in range(8):
+            if y in covered or target.get((x, y), OFF) == shown.get((x, y), OFF):
+                continue
+            c = target.get((x, y), OFF)
+            y1 = y
+            while y1 - 1 >= 0 and (y1 - 1) not in covered and target.get((x, y1 - 1), OFF) == c:
+                y1 -= 1
+            y2 = y
+            while y2 + 1 <= 7 and target.get((x, y2 + 1), OFF) == c:
+                y2 += 1
+            covered.update(range(y1, y2 + 1))
+            runs.append([x, x, y1, y2, c])
+    # 相邻列的同一段（同样的上下端、同样颜色）合并成矩形
+    runs.sort(key=lambda r: (r[2], r[3], r[4], r[0]))
+    merged = []
+    for r in runs:
+        last = merged[-1] if merged else None
+        if last and last[2:] == r[2:] and last[1] + 1 == r[0]:
+            last[1] = r[0]
+        else:
+            merged.append(r)
+    # 先发"点亮"的命令，再发"熄灭"的：新的数字先出现，旧的随后消失，整点时读数不会出现空白
+    merged.sort(key=lambda r: r[4] == OFF)
+    return [tuple(r) for r in merged]
+
+
+def apply_update(api, cmd, colors, flip, state):
+    """执行一条合并后的命令；不支持 set_matrix_fill 时自动退回逐颗绘制。"""
+    x1, x2, y1, y2, c = cmd
+    (dx1, dy1), (dx2, dy2) = to_device((x1, y1), flip), to_device((x2, y2), flip)
+    if (x1, y1) == (x2, y2) or not state.get("fill_ok", True):
+        for x in range(x1, x2 + 1):
+            for y in range(y1, y2 + 1):
+                dx, dy = to_device((x, y), flip)
+                api.set_matrix_pixel(dx, dy, colors[c])
+        return
+    try:
+        api.set_matrix_fill(dx1, dy1, dx2, dy2, colors[c])
+    except AttributeError:
+        state["fill_ok"] = False          # 老版本 spherov2 没有 set_matrix_fill
+        apply_update(api, cmd, colors, flip, state)
+
+
 # ---------------------------------------------------------------- 秒表状态
 class Stopwatch:
     def __init__(self, start: float = 0.0, running: bool = True, follow_clock: bool = False):
@@ -178,6 +238,9 @@ class Stopwatch:
         self.t0 = time.monotonic()  # 本次开始计时的时刻
         self.running = running
         self.quit = False
+        # 状态版本号：清零、暂停/继续、重设起点时 +1。
+        # 刷新线程每发一条蓝牙命令前都会检查它，发现变了就丢掉正在画的旧帧，立刻改画新状态。
+        self.version = 0
 
     def restart_from(self, start: float):
         """把计时基准重设到 start，并从现在开始走。
@@ -189,6 +252,7 @@ class Stopwatch:
             self.base = start
             self.t0 = time.monotonic()
             self.running = True
+            self.version += 1
 
     def elapsed(self) -> float:
         with self.lock:
@@ -204,12 +268,14 @@ class Stopwatch:
             else:
                 self.t0 = time.monotonic()
                 self.running = True
+            self.version += 1
             return self.running
 
     def reset(self):
         with self.lock:
             self.base = 0.0
             self.t0 = time.monotonic()
+            self.version += 1
 
 
 def keyboard_loop(sw: Stopwatch):
@@ -244,7 +310,7 @@ def run_preview(sw: Stopwatch):
             time.sleep(0.02)
 
     threading.Thread(target=loop, daemon=True).start()
-    print("终端预览（第1、2列 │ 第4、5列 │ 第7、8列；▲ 红=时  ◆ 紫=分十位  ○ 绿=分个位  ⊙ 分闪烁"
+    print("终端预览（第1、2列 │ 第4、5列 │ 第7、8列；▲ 洋红=时  ◆ 白=分十位  ○ 绿=分个位  ⊙ 分闪烁"
           "  ■ 蓝=秒十位  ● 黄=秒个位  ✱ 秒闪烁）")
     keyboard_loop(sw)
 
@@ -265,11 +331,11 @@ def run_bolt(sw: Stopwatch, flip: bool):
         # 画完再开始计时：蓝牙连接和初始绘制的时间都不计入秒表
         if sw.follow_clock:
             sw.start = now_seconds()      # --now：用连接完成这一刻的系统时间
+        fill_state = {}
         initial = encode(sw.start)
-        for p, c in initial.items():
-            if c != OFF:
-                x, y = to_device(p, flip)
-                api.set_matrix_pixel(x, y, colors[c])
+        blank = {p: OFF for p in FULL_GRID}
+        for cmd in plan_updates(initial, blank):
+            apply_update(api, cmd, colors, flip, fill_state)
         if sw.follow_clock:
             # 画初始画面也要时间，时钟模式下直接对齐到画完这一刻的系统时间
             sw.start = now_seconds()
@@ -279,24 +345,32 @@ def run_bolt(sw: Stopwatch, flip: bool):
         sw.restart_from(sw.start)
 
         def loop():
-            shown = {p: initial.get(p, OFF) for p in ALL_PIXELS}
+            shown = {p: initial.get(p, OFF) for p in FULL_GRID}   # 点阵上实际显示的内容
             last_sec = None
             try:
                 while not sw.quit:
+                    version = sw.version
                     e = sw.elapsed()
+                    tick = int(e * 2)                 # 半秒一格：秒的闪烁每半秒变一次
                     frame = encode(e)
-                    # 只发送变化的像素：平时每秒 1–2 条蓝牙命令
-                    for p, c in frame.items():
-                        if c != shown[p]:
-                            x, y = to_device(p, flip)
-                            api.set_matrix_pixel(x, y, colors[c])
-                            shown[p] = c
+                    finished = True
+                    for cmd in plan_updates(frame, shown):
+                        # 计时和刷新解耦：一旦状态变了（清零/暂停）或时间走到了下一格，
+                        # 就放弃这一帧剩下的命令，回到循环开头直接画最新的画面
+                        if sw.quit or sw.version != version or int(sw.elapsed() * 2) != tick:
+                            finished = False
+                            break
+                        apply_update(api, cmd, colors, flip, fill_state)
+                        x1, x2, y1, y2, c = cmd
+                        for x in range(x1, x2 + 1):
+                            for y in range(y1, y2 + 1):
+                                shown[(x, y)] = c
                     sec = int(e)
-                    if sec != last_sec:
+                    if finished and sec != last_sec:
                         last_sec = sec
-                        # 点阵上显示的分、秒，以及各颜色灯的数量
+                        # 只有整帧画完才打印，日志和点阵上实际显示的一致
                         print(f"\r{describe(e)}   ", end="", flush=True)
-                    time.sleep(0.02)
+                    time.sleep(0.01)
             except Exception as ex:
                 print(f"\n⚠️ 刷新出错：{ex!r}，请按回车或 Ctrl+C 退出")
                 sw.quit = True
