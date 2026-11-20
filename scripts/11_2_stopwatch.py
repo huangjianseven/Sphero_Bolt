@@ -1,6 +1,13 @@
-"""Step 11_2：点阵时钟第二版 —— 十进制秒表（分钟：第 4、5 列；秒：第 7、8 列）。
+"""Step 11_2：点阵时钟第二版 —— 时、分、秒（时：第 1、2 列；分：第 4、5 列；秒：第 7、8 列）。
 
-编码方式（列、颗都从 1 开始数；颗从上往下数）。分钟和秒用同一套规则：
+编码方式（列、颗都从 1 开始数；颗从上往下数）
+
+【小时】第 1、2 列，红灯 ▲，不进位、不闪烁
+    几点就亮几颗：第 1 列从上到下排满 8 颗后，再从第 2 列第 1 颗往下排
+    0 点、12 点不亮；11 点 – 11:59 亮 11 颗（第 1 列 8 颗 + 第 2 列 3 颗）
+    按 12 小时制：13 点亮 1 颗，23 点亮 11 颗
+
+【分钟、秒】用同一套"十位 + 个位 + 闪烁"规则：
 
                     分钟（第 4、5 列）          秒（第 7、8 列）
     十位 1–5 颗     第 4 列，紫灯 ◆             第 7 列，蓝灯 ■
@@ -9,32 +16,29 @@
     个位常亮        绿灯 ○                      黄灯 ●
     闪烁（正在走）   绿灯 ⊙，亮 1 秒、灭 1 秒     黄灯 ✱，亮半秒、灭半秒
 
+    时   = 红灯数
     分钟 = 紫灯数 × 10 + 常亮绿灯数
     秒   = 蓝灯数 × 10 + 常亮黄灯数
-    分钟的闪烁比秒的慢一倍，两个闪烁灯一眼就能分开。
 
-    第 6 列（以及第 1–3 列）不用，用来隔开分钟和秒。
+    第 3 列、第 6 列不用，用来隔开时、分、秒。
 
-          第4列 第5列 │ 第7列 第8列
-    第1颗   ◆     ○   │   ■     ●       （左图 = 12 分 25 秒）
-    第2颗   ·     ⊙   │   ■     ●       分：1 紫 + 2 绿 + 闪烁
-    第3颗   ·     ·   │   ·     ●       秒：2 蓝 + 5 黄 + 闪烁
-    第4颗   ·     ·   │   ·     ✱
-    第5颗   ·     ·   │   ·     ·
-    第6颗   ·     ·   │   ·     ·       ← 第 6 颗始终空着
-    第7颗   ○     ·   │   ●     ·       ← 个位起点
-    第8颗   ○     ·   │   ●     ·
-
-    60 秒  → 秒回到 0，分钟个位 +1
-    10 分  → 分钟进位：1 个紫灯，绿灯清零
-    60 分  → 全部回到 0（小时以后再加）
+         第1列 第2列 │ 第4列 第5列 │ 第7列 第8列
+    第1颗  ▲     ▲   │   ◆     ○   │   ■     ●     （左图 = 10 点 12 分 25 秒）
+    第2颗  ▲     ▲   │   ·     ⊙   │   ■     ●     时：10 红
+    第3颗  ▲     ·   │   ·     ·   │   ·     ●     分：1 紫 + 2 绿 + 闪烁
+    第4颗  ▲     ·   │   ·     ·   │   ·     ✱     秒：2 蓝 + 5 黄 + 闪烁
+    第5颗  ▲     ·   │   ·     ·   │   ·     ·
+    第6颗  ▲     ·   │   ·     ·   │   ·     ·
+    第7颗  ▲     ·   │   ○     ·   │   ●     ·
+    第8颗  ▲     ·   │   ○     ·   │   ●     ·
 
 用法：
-    python 11_2_stopwatch.py                 # 启动即开始计时
-    python 11_2_stopwatch.py --start 55      # 从第 55 秒开始（看秒 59→0、分钟 +1）
-    python 11_2_stopwatch.py --start 9:55    # 从 9 分 55 秒开始（看分钟 9→10 进位）
-    python 11_2_stopwatch.py --start 59:55   # 从 59 分 55 秒开始（看 59:59→0:00）
-    python 11_2_stopwatch.py --preview       # 不连 BOLT，只在终端预览
+    python 11_2_stopwatch.py                   # 秒表：从 0 开始计时
+    python 11_2_stopwatch.py --now             # 时钟：从当前系统时间开始走
+    python 11_2_stopwatch.py --start 55        # 从第 55 秒开始
+    python 11_2_stopwatch.py --start 9:55      # 从 9 分 55 秒开始（看分钟进位）
+    python 11_2_stopwatch.py --start 10:59:55  # 从 10 时 59 分 55 秒开始（看 10→11 点）
+    python 11_2_stopwatch.py --preview         # 不连 BOLT，只在终端预览（可与上面的参数组合）
 
 运行中（输入后按回车）：
     回车   暂停 / 继续
@@ -42,6 +46,7 @@
     q      退出（也可以按 Ctrl+C）
 """
 import argparse
+import datetime as dt
 import threading
 import time
 
@@ -52,6 +57,10 @@ YELLOW = (255, 200, 0)       # 秒个位（常亮和闪烁同色）
 # 分钟（和秒的颜色区分开）
 PURPLE = (180, 0, 255)       # 分十位
 GREEN = (0, 255, 60)         # 分个位（常亮和闪烁同色）
+# 小时（和分、秒的颜色区分开）
+RED = (255, 0, 0)            # 小时
+
+PALETTE = (OFF, YELLOW, BLUE, PURPLE, GREEN, RED)   # 连 BOLT 时要用到的全部颜色
 
 
 def make_digit_group(col: int, tens_color, ones_color, blink_period: float):
@@ -74,14 +83,19 @@ def make_digit_group(col: int, tens_color, ones_color, blink_period: float):
 MINUTES = make_digit_group(4, PURPLE, GREEN, blink_period=2.0)   # 第 4、5 列
 SECONDS = make_digit_group(7, BLUE, YELLOW, blink_period=1.0)    # 第 7、8 列
 GROUPS = (MINUTES, SECONDS)
-ALL_PIXELS = MINUTES["pixels"] + SECONDS["pixels"]
+
+# 小时：第 1 列第 1–8 颗，再接第 2 列第 1–8 颗；12 小时制最多 11 颗
+HOUR_PATH = [(0, y) for y in range(8)] + [(1, y) for y in range(8)]
+HOUR_PIXELS = HOUR_PATH[:11]
+
+ALL_PIXELS = HOUR_PIXELS + MINUTES["pixels"] + SECONDS["pixels"]
 
 
 # ---------------------------------------------------------------- 编码
 def split_time(elapsed: float):
-    """累计秒数 → (分 0–59, 秒 0–59)。"""
+    """累计秒数 → (时 0–11, 分 0–59, 秒 0–59)。小时按 12 小时制，0 点和 12 点都是 0。"""
     total = int(elapsed)
-    return (total // 60) % 60, total % 60
+    return (total // 3600) % 12, (total // 60) % 60, total % 60
 
 
 def draw_group(frame, g, value: int, elapsed: float):
@@ -97,8 +111,10 @@ def draw_group(frame, g, value: int, elapsed: float):
 
 def encode(elapsed: float):
     """把经过的时间编码成像素：返回 {(x, y): 颜色}，y=0 是最上面一颗。"""
-    minutes, seconds = split_time(elapsed)
+    hours, minutes, seconds = split_time(elapsed)
     frame = {p: OFF for p in ALL_PIXELS}
+    for p in HOUR_PATH[:hours]:                # 小时：几点亮几颗，不闪烁
+        frame[p] = RED
     draw_group(frame, MINUTES, minutes, elapsed)
     draw_group(frame, SECONDS, seconds, elapsed)
     return frame
@@ -111,40 +127,52 @@ def to_device(p, flip: bool = True):
 
 
 def describe(elapsed: float) -> str:
-    m, s = split_time(elapsed)
-    return (f"{m:2d} 分 {s:2d} 秒 = 分[{m // 10} 紫 + {m % 10} 绿]"
+    h, m, s = split_time(elapsed)
+    return (f"{h:2d} 时 {m:2d} 分 {s:2d} 秒 = 时[{h} 红]  分[{m // 10} 紫 + {m % 10} 绿]"
             f"  秒[{s // 10} 蓝 + {s % 10} 黄]")
 
 
 def preview_text(frame, elapsed: float) -> str:
-    minutes, seconds = split_time(elapsed)
+    _, minutes, seconds = split_time(elapsed)
     blinks = {MINUTES["ones_path"][minutes % 10]: "⊙", SECONDS["ones_path"][seconds % 10]: "✱"}
-    chars = {OFF: "·", PURPLE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●"}
+    chars = {OFF: "·", PURPLE: "◆", GREEN: "○", BLUE: "■", YELLOW: "●", RED: "▲"}
     lines = [f"累计 {elapsed:7.1f} 秒   " + describe(elapsed)]
     for y in range(8):
         row = []
-        for x in (3, 4, None, 6, 7):
+        for x in (0, 1, None, 3, 4, None, 6, 7):
             if x is None:
                 row.append("│")
                 continue
-            c = frame[(x, y)]
+            c = frame.get((x, y), OFF)
             row.append(blinks[(x, y)] if (x, y) in blinks and c != OFF else chars[c])
         lines.append("  " + "  ".join(row))
     return "\n".join(lines)
 
 
 def parse_start(text: str) -> float:
-    """--start 支持 "55"（秒）或 "9:55"（分:秒）。"""
-    if ":" in text:
-        m, s = text.split(":", 1)
-        return int(m) * 60 + float(s)
-    return float(text)
+    """--start 支持 "55"（秒）、"9:55"（分:秒）或 "10:59:55"（时:分:秒）。"""
+    parts = text.split(":")
+    if not 1 <= len(parts) <= 3:
+        raise argparse.ArgumentTypeError("格式应为 秒、分:秒 或 时:分:秒")
+    total = 0.0
+    for part in parts[:-1]:
+        total = (total + int(part)) * 60
+    return total + float(parts[-1])
+
+
+def now_seconds() -> float:
+    """当前系统时间折算成从 0 点开始的秒数（含小数）。"""
+    n = dt.datetime.now()
+    return n.hour * 3600 + n.minute * 60 + n.second + n.microsecond / 1e6
 
 
 # ---------------------------------------------------------------- 秒表状态
 class Stopwatch:
-    def __init__(self, start: float = 0.0, running: bool = True):
+    def __init__(self, start: float = 0.0, running: bool = True, follow_clock: bool = False):
         self.lock = threading.Lock()
+        self.follow_clock = follow_clock  # --now：起点取"开始计时那一刻"的系统时间
+        if follow_clock:
+            start = now_seconds()
         self.start = start          # 命令行 --start 指定的起点
         self.base = start           # 暂停前累计的秒数
         self.t0 = time.monotonic()  # 本次开始计时的时刻
@@ -216,7 +244,8 @@ def run_preview(sw: Stopwatch):
             time.sleep(0.02)
 
     threading.Thread(target=loop, daemon=True).start()
-    print("终端预览（第4、5列 │ 第7、8列；◆ 紫=分十位  ○ 绿=分个位  ⊙ 分闪烁  ■ 蓝=秒十位  ● 黄=秒个位  ✱ 秒闪烁）")
+    print("终端预览（第1、2列 │ 第4、5列 │ 第7、8列；▲ 红=时  ◆ 紫=分十位  ○ 绿=分个位  ⊙ 分闪烁"
+          "  ■ 蓝=秒十位  ● 黄=秒个位  ✱ 秒闪烁）")
     keyboard_loop(sw)
 
 
@@ -225,7 +254,7 @@ def run_bolt(sw: Stopwatch, flip: bool):
     from spherov2.sphero_edu import SpheroEduAPI
     from spherov2.types import Color
 
-    colors = {rgb: Color(*rgb) for rgb in (OFF, YELLOW, BLUE, PURPLE, GREEN)}
+    colors = {rgb: Color(*rgb) for rgb in PALETTE}
     toy = find_bolt()
     with SpheroEduAPI(toy) as api:
         api.set_back_led(colors[OFF])     # 关掉刺眼的前后灯
@@ -234,17 +263,23 @@ def run_bolt(sw: Stopwatch, flip: bool):
 
         # 先把起始画面画好（如 --start 55 要点亮 11 颗灯，要花一点时间），
         # 画完再开始计时：蓝牙连接和初始绘制的时间都不计入秒表
+        if sw.follow_clock:
+            sw.start = now_seconds()      # --now：用连接完成这一刻的系统时间
         initial = encode(sw.start)
         for p, c in initial.items():
             if c != OFF:
                 x, y = to_device(p, flip)
                 api.set_matrix_pixel(x, y, colors[c])
-        print("秒表运行中 —— 回车=暂停/继续  r=清零  q=退出")
-        print(f"连接完成，从 {split_time(sw.start)[0]} 分 {sw.start % 60:.1f} 秒开始计时")
+        if sw.follow_clock:
+            # 画初始画面也要时间，时钟模式下直接对齐到画完这一刻的系统时间
+            sw.start = now_seconds()
+        print("运行中 —— 回车=暂停/继续  r=清零  q=退出")
+        h, m, s = split_time(sw.start)
+        print(f"连接完成，从 {h} 时 {m} 分 {s} 秒开始计时")
         sw.restart_from(sw.start)
 
         def loop():
-            shown = dict(initial)
+            shown = {p: initial.get(p, OFF) for p in ALL_PIXELS}
             last_sec = None
             try:
                 while not sw.quit:
@@ -278,17 +313,19 @@ def run_bolt(sw: Stopwatch, flip: bool):
 
 
 def main():
-    p = argparse.ArgumentParser(description="十进制秒表（分钟：第 4、5 列；秒：第 7、8 列）")
-    p.add_argument("--start", type=parse_start, default=0.0,
-                   help='起始时间：秒数如 55，或 分:秒 如 9:55，默认 0')
+    p = argparse.ArgumentParser(description="点阵时、分、秒（时：第 1、2 列；分：第 4、5 列；秒：第 7、8 列）")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--start", type=parse_start, default=0.0,
+                   help="起始时间：秒数如 55、分:秒 如 9:55、时:分:秒 如 10:59:55，默认 0")
+    g.add_argument("--now", action="store_true", help="从当前系统时间开始走（当时钟用）")
     p.add_argument("--preview", action="store_true", help="不连 BOLT，只在终端预览")
     p.add_argument("--no-flip", action="store_true", help="不做上下翻转（一般不需要）")
     a = p.parse_args()
     if a.preview:
-        run_preview(Stopwatch(a.start))
+        run_preview(Stopwatch(a.start, follow_clock=a.now))
     else:
         # 连 BOLT 时先不走表，等连接和初始画面完成后由 run_bolt 启动
-        run_bolt(Stopwatch(a.start, running=False), flip=not a.no_flip)
+        run_bolt(Stopwatch(a.start, running=False, follow_clock=a.now), flip=not a.no_flip)
 
 
 if __name__ == "__main__":
