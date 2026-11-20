@@ -5,10 +5,17 @@
 
 编码方式（列、颗都从 1 开始数；颗从上往下数）
 
-【小时】第 1、2 列，洋红灯 ▲
-    几点就亮几颗：第 1 列从上到下排满 8 颗后，再从第 2 列第 1 颗往下排
-    0 点、12 点不亮；11 点 – 11:59 亮 11 颗（第 1 列 8 颗 + 第 2 列 3 颗）
-    按 12 小时制：13 点亮 1 颗，23 点亮 11 颗
+【小时】第 1、2 列，洋红灯 ▲，布莱叶盲文（braille-clock 分支）
+    一个盲文点字格 = 2 列 × 3 颗，放在第 1、2 列的第 4–6 颗（上下居中）：
+
+        点1 ● ● 点4        第 1 列第 4 颗 = 点1    第 2 列第 4 颗 = 点4
+        点2 ● ● 点5        第 1 列第 5 颗 = 点2    第 2 列第 5 颗 = 点5
+        点3 ● ● 点6        第 1 列第 6 颗 = 点3    第 2 列第 6 颗 = 点6
+
+    1–10 用盲文数字（字母 a–j 的点位），11 接着用字母 k：
+        1 ⠁  2 ⠃  3 ⠉  4 ⠙  5 ⠑  6 ⠋  7 ⠛  8 ⠓  9 ⠊  10 ⠚  11 ⠅
+    10 点的图案：点 2、4、5（右上、左中、右中），按设计图
+    0 点、12 点不亮；按 12 小时制：13 点 = 1，23 点 = 11
 
 【分钟、秒】"十位 + 个位"，全部常亮，不再闪烁：
 
@@ -18,7 +25,7 @@
     个位路径        第4列第7、8颗 → 第5列1–8颗   第7列第7、8颗 → 第8列1–8颗
     个位            绿灯 ○                      黄灯 ●
 
-    时   = 洋红灯数
+    时   = 洋红盲文点字
     分钟 = 白灯数 × 10 + 绿灯数
     秒   = 蓝灯数 × 10 + 黄灯数
 
@@ -35,14 +42,14 @@
     分钟不再有闪烁灯，整个画面每秒只有一颗灯在缓缓变化。
 
          第1列 第2列 │ 第4列 第5列 │ 第7列 第8列
-    第1颗  ▲     ▲   │   ◆     ○   │   ■     ●     （左图 = 10 点 12 分 25 秒）
-    第2颗  ▲     ▲   │   ·     ·   │   ■     ●     时：10 洋红
-    第3颗  ▲     ·   │   ·     ·   │   ·     ●     分：1 白 + 2 绿
-    第4颗  ▲     ·   │   ·     ·   │   ·     ✧     秒：2 蓝 + 5 黄
-    第5颗  ▲     ·   │   ·     ·   │   ·     ·     ✧ = 正在呼吸、将在 26 秒亮足的那颗
-    第6颗  ▲     ·   │   ·     ·   │   ·     ·
-    第7颗  ▲     ·   │   ○     ·   │   ●     ·
-    第8颗  ▲     ·   │   ○     ·   │   ●     ·
+    第1颗  ·     ·   │   ◆     ○   │   ■     ●     （左图 = 10 点 12 分 25 秒）
+    第2颗  ·     ·   │   ·     ·   │   ■     ●     时：盲文 10 ⠚（点 2、4、5）
+    第3颗  ·     ·   │   ·     ·   │   ·     ●     分：1 白 + 2 绿
+    第4颗  ·     ▲   │   ·     ·   │   ·     ✧     秒：2 蓝 + 5 黄
+    第5颗  ▲     ▲   │   ·     ·   │   ·     ·     ✧ = 正在呼吸、将在 26 秒亮足的那颗
+    第6颗  ·     ·   │   ·     ·   │   ·     ·
+    第7颗  ·     ·   │   ○     ·   │   ●     ·
+    第8颗  ·     ·   │   ○     ·   │   ●     ·
 
 用法：
     python 11_2_stopwatch.py                   # 时钟（默认）：启动时读取电脑系统时间，从这个时间开始走
@@ -99,9 +106,29 @@ MINUTES = make_digit_group(4, WHITE, GREEN)   # 第 4、5 列
 SECONDS = make_digit_group(7, BLUE, YELLOW)    # 第 7、8 列
 GROUPS = (MINUTES, SECONDS)
 
-# 小时：第 1 列第 1–8 颗，再接第 2 列第 1–8 颗；12 小时制最多 11 颗
-HOUR_PATH = [(0, y) for y in range(8)] + [(1, y) for y in range(8)]
-HOUR_PIXELS = HOUR_PATH[:11]
+# 小时：布莱叶盲文点字格，第 1、2 列的第 4–6 颗（y 从 0 开始数 → 3、4、5）
+BRAILLE_TOP = 3
+BRAILLE_DOT = {   # 盲文点号 → 点阵坐标 (x, y)
+    1: (0, BRAILLE_TOP), 2: (0, BRAILLE_TOP + 1), 3: (0, BRAILLE_TOP + 2),
+    4: (1, BRAILLE_TOP), 5: (1, BRAILLE_TOP + 1), 6: (1, BRAILLE_TOP + 2),
+}
+# 1–10：盲文数字（与字母 a–j 同形）；10 按设计图为点 2、4、5；11：字母 k
+BRAILLE_HOURS = {
+    0: (),
+    1: (1,),          # ⠁ a
+    2: (1, 2),        # ⠃ b
+    3: (1, 4),        # ⠉ c
+    4: (1, 4, 5),     # ⠙ d
+    5: (1, 5),        # ⠑ e
+    6: (1, 2, 4),     # ⠋ f
+    7: (1, 2, 4, 5),  # ⠛ g
+    8: (1, 2, 5),     # ⠓ h
+    9: (2, 4),        # ⠊ i
+    10: (2, 4, 5),    # ⠚ j（设计图）
+    11: (1, 3),       # ⠅ k
+}
+BRAILLE_CHAR = " ⠁⠃⠉⠙⠑⠋⠛⠓⠊⠚⠅"
+HOUR_PIXELS = list(BRAILLE_DOT.values())
 
 ALL_PIXELS = HOUR_PIXELS + MINUTES["pixels"] + SECONDS["pixels"]
 
@@ -126,8 +153,8 @@ def steady_frame(whole_seconds: int):
     """某一整秒时的静止画面：只有常亮灯，没有呼吸。"""
     hours, minutes, seconds = split_time(whole_seconds)
     frame = {p: OFF for p in ALL_PIXELS}
-    for p in HOUR_PATH[:hours]:                # 小时：几点亮几颗
-        frame[p] = MAGENTA
+    for dot in BRAILLE_HOURS[hours]:          # 小时：盲文点字
+        frame[BRAILLE_DOT[dot]] = MAGENTA
     draw_group(frame, MINUTES, minutes)
     draw_group(frame, SECONDS, seconds)
     return frame
@@ -180,7 +207,7 @@ def to_device(p, flip: bool = True):
 
 def describe(elapsed: float) -> str:
     h, m, s = split_time(elapsed)
-    return (f"{h:2d} 时 {m:2d} 分 {s:2d} 秒 = 时[{h} 洋红]  分[{m // 10} 白 + {m % 10} 绿]"
+    return (f"{h:2d} 时 {m:2d} 分 {s:2d} 秒 = 时[盲文 {BRAILLE_CHAR[h]}]  分[{m // 10} 白 + {m % 10} 绿]"
             f"  秒[{s // 10} 蓝 + {s % 10} 黄]")
 
 
@@ -370,7 +397,7 @@ def run_preview(sw: Stopwatch):
             time.sleep(0.02)
 
     threading.Thread(target=loop, daemon=True).start()
-    print("终端预览（第1、2列 │ 第4、5列 │ 第7、8列；▲ 洋红=时  ◆ 白=分十位  ○ 绿=分个位"
+    print("终端预览（第1、2列 │ 第4、5列 │ 第7、8列；▲ 洋红=时（盲文）  ◆ 白=分十位  ○ 绿=分个位"
           "  ■ 蓝=秒十位  ● 黄=秒个位  ∘ ✧ ✦ = 正在呼吸、慢慢亮起的灯）")
     keyboard_loop(sw)
 
