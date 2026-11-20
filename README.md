@@ -23,6 +23,7 @@ python 06_keyboard_drive.py  # 键盘遥控
 python 07_sound.py           # 带音效的遥控（BOLT 无扬声器，声音由 Mac 播放）
 python 08_compass.py         # 罗盘校准，并依次指向 北/东/南/西
 caffeinate -i python 09_alarm.py --in 2   # 闹钟测试：2 分钟后响（正式用 --time 08:00）
+python 10_scroll_text.py     # 输入英文，在点阵上循环滚动，直到手动干预
 ```
 
 > **Python 版本**：请用 3.10 – 3.12（已验证 3.12.16）。Python 3.15 与 `spherov2 0.12.1` 不兼容。
