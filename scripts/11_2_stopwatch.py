@@ -94,12 +94,24 @@ def preview_text(frame, elapsed: float) -> str:
 
 # ---------------------------------------------------------------- 秒表状态
 class Stopwatch:
-    def __init__(self, start: float = 0.0):
+    def __init__(self, start: float = 0.0, running: bool = True):
         self.lock = threading.Lock()
+        self.start = start          # 命令行 --start 指定的起点
         self.base = start           # 暂停前累计的秒数
         self.t0 = time.monotonic()  # 本次开始计时的时刻
-        self.running = True
+        self.running = running
         self.quit = False
+
+    def restart_from(self, start: float):
+        """把计时基准重设到 start，并从现在开始走。
+
+        连接 BOLT 要花几秒（实测约 6 秒）；在连接、清屏、画好起始画面之后再调用，
+        这几秒就不会被算进秒表。
+        """
+        with self.lock:
+            self.base = start
+            self.t0 = time.monotonic()
+            self.running = True
 
     def elapsed(self) -> float:
         with self.lock:
@@ -171,8 +183,19 @@ def run_bolt(sw: Stopwatch, flip: bool):
         api.set_front_led(colors[OFF])
         api.clear_matrix()
 
+        # 先把起始画面画好（如 --start 55 要点亮 11 颗灯，要花一点时间），
+        # 画完再开始计时：蓝牙连接和初始绘制的时间都不计入秒表
+        initial = encode(sw.start)
+        for p, c in initial.items():
+            if c != OFF:
+                x, y = to_device(p, flip)
+                api.set_matrix_pixel(x, y, colors[c])
+        print("秒表运行中 —— 回车=暂停/继续  r=清零  q=退出")
+        print(f"连接完成，从 {sw.start:.1f} 秒开始计时")
+        sw.restart_from(sw.start)
+
         def loop():
-            shown = {p: OFF for p in ALL_PIXELS}
+            shown = dict(initial)
             last_sec = None
             try:
                 while not sw.quit:
@@ -187,7 +210,9 @@ def run_bolt(sw: Stopwatch, flip: bool):
                     sec = int(e) % 60
                     if sec != last_sec:
                         last_sec = sec
-                        print(f"\r{e:6.1f} 秒  = {sec // 10} 蓝 + {sec % 10} 黄   ", end="", flush=True)
+                        # 前面是点阵上显示的秒数（0–59），括号里是累计时间
+                        print(f"\r{sec:2d} 秒 = {sec // 10} 蓝 + {sec % 10} 黄   （累计 {e:6.1f} 秒）   ",
+                              end="", flush=True)
                     time.sleep(0.02)
             except Exception as ex:
                 print(f"\n⚠️ 刷新出错：{ex!r}，请按回车或 Ctrl+C 退出")
@@ -195,7 +220,6 @@ def run_bolt(sw: Stopwatch, flip: bool):
 
         t = threading.Thread(target=loop, daemon=True)
         t.start()
-        print("秒表运行中 —— 回车=暂停/继续  r=清零  q=退出")
         try:
             keyboard_loop(sw)
         finally:
@@ -211,11 +235,11 @@ def main():
     p.add_argument("--preview", action="store_true", help="不连 BOLT，只在终端预览")
     p.add_argument("--no-flip", action="store_true", help="不做上下翻转（一般不需要）")
     a = p.parse_args()
-    sw = Stopwatch(a.start)
     if a.preview:
-        run_preview(sw)
+        run_preview(Stopwatch(a.start))
     else:
-        run_bolt(sw, flip=not a.no_flip)
+        # 连 BOLT 时先不走表，等连接和初始画面完成后由 run_bolt 启动
+        run_bolt(Stopwatch(a.start, running=False), flip=not a.no_flip)
 
 
 if __name__ == "__main__":
