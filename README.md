@@ -26,6 +26,7 @@ caffeinate -i python 09_alarm.py --in 2   # 闹钟测试：2 分钟后响（正�
 python 10_scroll_text.py     # 输入英文，在点阵上循环滚动，直到手动干预
 python 11_analog_clock.py    # 指针时钟：红点秒针绕外圈走，每秒亮暗切换
 python 11_2_stopwatch.py     # 点阵时钟（默认读电脑系统时间）：洋红=时，白/绿=分，蓝/黄=秒；下一颗灯呼吸着亮起，整秒准时进位
+python 12_music_pulse.py --file 歌.mp3   # 声之涟漪：点阵随音乐跳动（也可用麦克风、--demo、--preview）
 ```
 
 > **Python 版本**：请用 3.10 – 3.12（已验证 3.12.16）。Python 3.15 与 `spherov2 0.12.1` 不兼容。
