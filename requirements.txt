@@ -4,3 +4,6 @@
 spherov2>=0.12
 bleak
 pynput
+# 12_music_pulse.py（随音乐跳动）需要：
+numpy
+sounddevice
